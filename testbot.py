@@ -141,7 +141,8 @@ class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
                     message = message[len(self.nick)+1:].strip()
                 elif message.startswith('!' + self.nick + ':'):
                     message = message[len(self.nick)+2:].strip()
-                    user = args[0] # XXX: is this necessary?
+                    user = args[0]
+                    print user
                 else:
                     return
 
@@ -194,8 +195,7 @@ class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
                 self.part(chan, params)
             elif command == 'RENAME':
                 self.newnick(params)
-            elif command == 'COMMANDS':
-                user = prefix[:prefix.find('!')]        
+            elif command == 'COMMANDS':       
                 self.privmsg(user, '<begin commands>')
                 self.privmsg(user, 'COMMANDS AVAILABLE:')
                 self.privmsg(user, 'JOIN - join channel(sslimmed down event handlers): JOIN <channel list (seperated by a comma)>')
@@ -221,6 +221,7 @@ class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
                 self.privmsg(user, '<end stats>')
             elif command == 'RELOAD':
                 self.loadOptions()
+                self.privmsg(user, 'Config File Reloaded')
             elif command == 'HOP':
                 self.part(params, 'Hopping...')
                 self.join(params)
