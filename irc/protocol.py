@@ -36,17 +36,17 @@ from messages import nick, user, pong
 
 class Connection(asyncore.dispatcher):
 
-    def __init__(self, host, nick, name, mode, port=6667):
+    def __init__(self, host, alias, name, mode, port=6667):
         asyncore.dispatcher.__init__(self)
-        self.userRegistered = False
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
-        self.tempOut = ''
         self.dataOut = ''
         self.dataIn = ''
-        self.nick = nick
+        self.nick = alias
         self.name = name
         self.mode = mode
+        self.sendMsg(nick.NickMsg(self.nick))
+        self.sendMsg(user.UserMsg(self.nick, self.mode, self.name))
 
         # By default, we process PING, 376, and 422 messages.
         self.msgHandlers = {'PING': self.pingHandler,
@@ -72,18 +72,14 @@ class Connection(asyncore.dispatcher):
             self.defaultHandler(prefix, command, args)
 
     def pingHandler(self, prefix, args):
-        self.forceSendMsg(pong.PongMsg(args[0]))
+        self.sendMsg(pong.PongMsg(args[0]))
 
     def welcomeHandler(self, prefix, args):
-        self.userRegistered = True
-        if self.tempOut:
-            self.sendMsg(self.tempOut)
-            del self.tempOut
+        pass
 
     def handle_connect(self):
         """Called when connection established."""
-        self.forceSendMsg(nick.NickMsg(self.nick))
-        self.forceSendMsg(user.UserMsg(self.nick, self.mode, self.name))
+        pass
 
     def handle_close(self):
         """Called when socket/connection is closed."""
@@ -180,11 +176,6 @@ class Connection(asyncore.dispatcher):
         """Indicates if anything needs to be written."""
         return len(self.dataOut) > 0
 
-    def forceSendMsg(self, message):
-        """Forces a message to be sent."""
-
-        self.dataOut += str(message) + '\r\n'
-
     def sendMsg(self, message):
         """Queues a message for sending to the IRC server.
 
@@ -195,8 +186,5 @@ class Connection(asyncore.dispatcher):
         if len(str(message)) >= 510:
             raise 'Message is too long. Must be no more than 510 characters.'
 
-        if self.userRegistered:
-            self.dataOut += str(message) + '\r\n'
-        else:
-            self.tempOut += str(message) + '\r\n'
+        self.dataOut += str(message) + '\r\n'
 

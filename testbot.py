@@ -32,12 +32,12 @@ from irc.messages import join
 
 class Bot(protocol.Connection):
 
-    def __init__(self, host, nick='pychatbot', name='boo', mode=0):
+    def __init__(self, host, nick='pychatUSER', name='boo', mode=0):
         protocol.Connection.__init__(self, host, nick, name, mode)
         self.sendMsg(join.JoinMsg('#bytehouse'))
 
 def main():
-    a = Bot('za.shadowfire.org')
+    a = Bot('efnet.demon.co.uk')
     protocol.asyncore.loop()
 
 if __name__ == '__main__':
