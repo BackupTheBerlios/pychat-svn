@@ -80,7 +80,10 @@ class Connection(asyncore.dispatcher):
         self.sendMsg(pong.PongMsg(args[0]))
 
     def welcomeHandler(self, prefix, args):
-        pass
+        self.userRegistered = True
+        if self.tempOut:
+            self.sendMsg(self.tempOut)
+            del self.tempOut
 
     def handle_connect(self):
         """Called when connection established."""
@@ -191,5 +194,8 @@ class Connection(asyncore.dispatcher):
         if len(str(message)) >= 510:
             raise 'Message is too long. Must be no more than 510 characters.'
 
-        self.dataOut += str(message) + '\r\n'
+        if self.userRegistered:
+            self.dataOut += str(message) + '\r\n'
+        else:
+            self.tempOut += str(message) + '\r\n'
 
