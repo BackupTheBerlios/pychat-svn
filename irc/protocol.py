@@ -29,67 +29,48 @@
 
 import socket
 import asyncore
-import re
-
-from exceptions import connection, unhandled
 
 class Connection(asyncore.dispatcher):
 
-    def __init__(self, host, alias, name, mode, port=6667):
+    def __init__(self, host, nick, name, mode, port=6667):
         asyncore.dispatcher.__init__(self)
         self.userRegistered = False
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        try:
-            self.connect((host, port))
-        except socket.error, inst:
-            # need to work on this... I was thinkin something similar to the message handlers, 
-            # like a dictionary of error codes linked to an exception class????
-            #XXX: Temporary: if 61 (Connection refused) raise connection.Refused, else unhandled.ProtocolException
-            if inst.args[0] == 61:
-                raise connection.Refused(host)
-            else:
-                print inst.args[0]
-                raise unhandled.ProtocolException(inst.args)
-            
+        self.connect((host, port))    
         self.tempOut = ''
         self.dataOut = ''
         self.dataIn = ''
-        self.myNick = alias
+        self.nick = nick
         self.name = name
         self.mode = mode
         self.channels = []
 
         # Must send NICK and USER messages to establish connection and
         # register the user.
-        self.forceSendMsg('NICK %s' % self.myNick)
-        self.forceSendMsg('USER %s %u * :%s' % (self.myNick, self.mode, self.name))
+        self.forceSendMsg('NICK %s' % self.nick)
+        self.forceSendMsg('USER %s %u * :%s' % (self.nick, self.mode, self.name))
 
     def defaultNumericHandler(self, prefix, command, args):
         # ignoring message, can be overriden by bot...
-        print 'DEBUG: ignoring reply:', command
+        pass
     
     def defaultHandler(self, prefix, command, args):
-        print 'DEBUG: ignoring:', command
-    
+        pass
+        
     def onNick(self, prefix, args):
         user = prefix[:prefix.find('!')]
-        if user == self.myNick: 
-            self.myNick = args[0]
+        if user == self.nick: 
+            self.nick = args[0]
             
     def onJoin(self, prefix, args):
         user = prefix[:prefix.find('!')]
-        if user == self.myNick: 
+        if user == self.nick: 
             self.channels.append(args[0].lower())
         
-        print 'JOIN: ',' '.join(args)
-
     def onPart(self, prefix, args):
         user = prefix[:prefix.find('!')]
-        if user == self.myNick: 
+        if user == self.nick: 
             self.channels.remove(args[0].lower())   
-
-        print 'PART: ',' '.join(args)
 
     def callHandler(self, command, prefix='', args=''):
         if command.isdigit():
@@ -113,23 +94,23 @@ class Connection(asyncore.dispatcher):
             del self.tempOut
         
     def onNotice(self, prefix, args):
-        print 'SERVER NOTICE: ' + ' '.join(args)
-
+        pass
+        
     def handle_connect(self):
         """Called when connection established."""
         pass
 
     def handle_close(self):
         """Called when socket/connection is closed."""
-        print 'Closed!'
-
+        pass
+        
     def handle_read(self):
         """Called when there is data to be read."""
         data = self.recv(512)
         if not data:
             self.close()
             return
-     #   print '[<<<]\t', data
+        
         self.dataIn += data
 
         # buffering... check if last message is complete
@@ -180,7 +161,6 @@ class Connection(asyncore.dispatcher):
 
     def handle_write(self):
         """Called when data has been sent"""
-      #  print '[>>>]\t', self.dataOut
         sent = self.send(self.dataOut)
         self.dataOut = self.dataOut[sent:]
 
@@ -201,6 +181,7 @@ class Connection(asyncore.dispatcher):
 
         # Messages can only be 510 characters long. (512 with terminator.)
         if len(str(message)) >= 510:
+            # TODO: add custom exception
             raise 'Message is too long. Must be no more than 510 characters.'
 
         if self.userRegistered:
@@ -218,7 +199,7 @@ class Connection(asyncore.dispatcher):
     def join(self, channel):
         self.sendMsg('JOIN %s' % channel)
 
-    def nick(self, nick):
+    def Nick(self, nick):
         self.sendMsg('NICK %s' % nick)
 
     def privateMsg(self, who, message):

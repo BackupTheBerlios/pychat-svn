@@ -35,96 +35,106 @@ class Bot(protocol.Connection):
     def __init__(self, host, nick='pyuser', name='test', mode=0):
         protocol.Connection.__init__(self, host, nick, name, mode)
         self.join('#bytehouse')
-        self.authUsers = ['xor', 'iddqd']       # only respond to commands from
+        self.authUsers = ['xor', 'iddqd'] # only respond to commands from
         self.options = {'VERSION': '0.01a', 'REVISION':'Revision 21'}
 
-    def defaultNumericHandler(self, prefix, command, args):   # overriden from protocol
+    def defaultNumericHandler(self, prefix, command, args):     # overriden
         if command == '433':
             print 'DEBUG: Nick Collision'
         else:
             print 'DEBUG: Unhandled num reply:', command
 
     def onError(self, prefix, args):
-        print ' '.join(args)                                  # currently only prints out the args, needs to handle errors
-
+        print ' '.join(args)   # currently only prints out the args,
+                               # TODO: needs to handle errors
+        
+    def onNotice(self, prefix, args):
+        print 'SERVER NOTICE: ' + ' '.join(args)
+        
     def onKick(self, prefix, args):
-        protocol.Connection.onPart(self, prefix, args)
         print 'KICK: ', ' '.join(args)
-        if args[1] == self.myNick:                              # if kicked rejoin channel
+        if args[1] == self.nick:      # if kicked rejoin channel
             self.channels.remove(args[0].lower())
             self.join(args[0])
+    
+    def onPart(self, prefix, args):
+        protocol.Connection.onPart(self, prefix, args)
+        print 'PART: ',' '.join(args)
 
-    def onJoin(self, prefix, args):                      # XXX: super() doesnt work, its for types not classes apparently
-        protocol.Connection.onJoin(self, prefix, args)     # call the protocol joinHandler, adds channel to channels list, ugly way of doing it :(
-        user = prefix[:prefix.find('!')]
-        if user != self.myNick:                                 # if not me, then welcome user
+    def onJoin(self, prefix, args):   
+        protocol.Connection.onJoin(self, prefix, args) # call protocol onJoin
+        user = prefix[:prefix.find('!')]               
+        if user != self.nick: 
+            print 'JOIN: ',' '.join(args)
             if user.lower() in self.authUsers:
                 self.privateMsg(args[0],'Welcome to %s, the all powerful %s, thank you for blessing us with your presence' % (args[0], user))
             else:
                 self.privateMsg(args[0],'Welcome to %s, %s' % (args[0], user))
-            
+
     def onPrivmsg(self, prefix, args):
         user = prefix[:prefix.find('!')]
-        if user.lower() in self.authUsers:                          # is the message from an authorised user?
+        # is the message from an authorised user?
+        if user.lower() in self.authUsers:  
             if args[0] in self.channels:    
-                if args[1].startswith(self.myNick + ':'):             # if from channel, then only process if proceeded by nick: or !nick:
-                    args[1] = args[1][len(self.myNick)+1:].strip()    # strip nick:
-                elif args[1].startswith('!' + self.myNick + ':'):     # if !nick: msg back to channel not user
-                    args[1] = args[1][len(self.myNick)+2:].strip()    # strip !nick:
+            # if from channel,then only process if proceeded by nick: or !nick:
+            # if nick, then respond to user from which msg originated
+            # if !nick, then respond to channel
+                if args[1].startswith(self.nick + ':'):  
+                    args[1] = args[1][len(self.nick)+1:].strip() 
+                elif args[1].startswith('!' + self.nick + ':'): 
+                    args[1] = args[1][len(self.nick)+2:].strip()
                     user = args[0]
                 else:
                     return
                
-            space = args[1].find(' ')                               # find space between command and parameters
+            space = args[1].find(' ')                               
             if space != -1:
-                command = args[1][:space].upper()                   # grab the command
-                params = args[1][space:].strip()                    # grab the params, strip any spaces between
+                command = args[1][:space].upper()                   
+                params = args[1][space:].strip()                    
             else:
-                command = args[1].upper()                           # command is the whole message
-                params = ''                                         # no parameters
-
-            # logging - should be replaced in the near future... logging object/handler :) iddqd...
+                command = args[1].upper()                           
+                params = ''                                         
 
             print 'DEBUG: Remote Command %s from %s with parameters: %s' % (command, user, params)
             
             if command == 'QUIT':
-                self.quit(params)                                   # send QUIT message
-            elif command == 'SAY':                                  # allow talking through bot
-                space = params.find(' ')                            # parse say params into   
-                if space != -1:                                     # channel/user and message
+                self.quit(params)                                 
+            elif command == 'SAY':                                
+                space = params.find(' ')                          
+                if space != -1:                                   
                     dest = params[:space]
                     params = params[space:].strip()                   
                 else:
                    self.privateMsg(user,'Error: Not enough parameters')
                 self.privateMsg(dest,params)
             elif command == 'JOIN':                                 
-                for param in params.split(','):                     # check if already on channel
+                for param in params.split(','):                  
                     if param.lower() in self.channels:
                         self.privateMsg(user,'ERROR: Already on channel: ' + param)
                         return
                 
-                self.join(params)                                   # send JOIN message
+                self.join(params)                                
             elif command == 'LEAVE':
-                space = params.find(' ')                            # parse leave params into   
-                if space != -1:                                     # channels and leave message (if any)
+                space = params.find(' ')                         
+                if space != -1:                                  
                     chan = params[:space]
                     params = params[space:].strip()                   
                 else:
                     chan = params
                     params = ''                  
                     
-                if chan.lower() == 'all':                           # special case, send JOIN message
-                    self.join(0)                                    # with a 0, leave all channels
+                if chan.lower() == 'all':                        
+                    self.join(0)                                 
                     return
                 
-                for ch in chan.split(','):                          # check if on channel
+                for ch in chan.split(','):        
                     if ch.lower() not in self.channels:
                         self.privateMsg(user,'Error: Not on channel: ' + ch)
                         return
 
-                self.leave(chan,params)                             # send PART message
+                self.leave(chan,params)                        
             elif command == 'RENAME':
-                self.nick(params)                                   # change NICK, send NICK message
+                self.Nick(params)                                 
             elif command == 'COMMANDS':
                 self.privateMsg(user,'<begin commands>')
                 self.privateMsg(user,'COMMANDS AVAILABLE:')
@@ -139,7 +149,7 @@ class Bot(protocol.Connection):
                 self.privateMsg(user,'<begin stats>')
                 self.privateMsg(user,'pychat Project: Python IRC Client')
                 self.privateMsg(user,'http://pychat.berlios.de/')
-                self.privateMsg(user,'NICK: ' + self.myNick)
+                self.privateMsg(user,'NICK: ' + self.nick)
                 self.privateMsg(user,'NAME: ' + self.name) 
                 self.privateMsg(user,'VERSION: ' + self.options['VERSION'])                 
                 self.privateMsg(user,'REVISION: ' + self.options['REVISION'])                 
@@ -147,7 +157,7 @@ class Bot(protocol.Connection):
                 self.privateMsg(user,'This is a test bot written to test the functionality of the pychat protocol handler')
                 self.privateMsg(user,'<end stats>')
             else:
-                self.privateMsg(user,'Error: Unrecognized command: ' + command)  # error, not recognised
+                self.privateMsg(user,'Error: Unrecognized command: ' + command) 
                 
 def main():
     a = Bot('za.shadowfire.org')
