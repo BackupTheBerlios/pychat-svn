@@ -48,7 +48,7 @@ class Bot(protocol.Connection):
         protocol.Connection.__init__(self, server, nick, name, mode)
 
     def onRegister(self, prefix, args):
-        for chan in channels:
+        for chan in self.channels:
             self.join(chan)
 
     def defaultNumericHandler(self, prefix, command, args):
@@ -100,27 +100,29 @@ class Bot(protocol.Connection):
         # is there a message left? After CTCP processing...
         if len(args[1]) == 0:
             return
-        user = prefix[:prefix.find('!')]
+        # more readable...
+        user, channel, message = prefix[:prefix.find('!')], args[0], args[1]
+        
         # is the message from an authorised user?
         if user.lower() in self.authUsers:
-            if args[0] in self.channels:
+            if channel in self.channels:
             # if from channel,then only process if proceeded by nick: or !nick:
             # if nick, then respond to user from which msg originated
             # if !nick, then respond to channel
-                if args[1].startswith(self.nick + ':'):
-                    args[1] = args[1][len(self.nick)+1:].strip()
-                elif args[1].startswith('!' + self.nick + ':'):
-                    args[1] = args[1][len(self.nick)+2:].strip()
-                    user = args[0]
+                if message.startswith(self.nick + ':'):
+                    message = message[len(self.nick)+1:].strip()
+                elif message.startswith('!' + self.nick + ':'):
+                    message = message[len(self.nick)+2:].strip()
+                    user = args[0] # XXX: is this necessary?
                 else:
                     return
 
-            space = args[1].find(' ')
+            space = message.find(' ')
             if space != -1:
-                command = args[1][:space].upper()
-                params = args[1][space:].strip()
+                command = message[:space].upper()
+                params = message[space:].strip()
             else:
-                command = args[1].upper()
+                command = message.upper()
                 params = ''
 
             print 'DEBUG: Remote Command %s from %s with parameters: %s' % (command, user, params)
@@ -166,7 +168,7 @@ class Bot(protocol.Connection):
             elif command == 'COMMANDS':
                 self.privmsg(user, '<begin commands>')
                 self.privmsg(user, 'COMMANDS AVAILABLE:')
-                self.privmsg(user, 'JOIN - join channel(s): JOIN <channel list (seperated by a comma)>')
+                self.privmsg(user, 'JOIN - join channel(sslimmed down event handlers): JOIN <channel list (seperated by a comma)>')
                 self.privmsg(user, 'LEAVE - leave channel(s): LEAVE <channel list (seperated by a comma)> <message>')
                 self.privmsg(user, 'QUIT - quit server: QUIT <quit msg>')
                 self.privmsg(user, 'STATS - displays stats: STATS')

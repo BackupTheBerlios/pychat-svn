@@ -180,6 +180,9 @@ class Connection(asyncore.dispatcher):
         print 'DEBUG: CTCP:', args
         # CTCP messages can be embedded... so have to find and remove them...
         ctcpMsgs = []
+        # XXX: i think I should leave this the way it is... 
+        # or I could neaten it up with a seperate variable, 
+        # and then return that... what do you think?
         while args[1].count('\001') > 0:
             start = args[1].find('\001')
             end = args[1].find('\001', start+1)
