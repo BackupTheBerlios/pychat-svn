@@ -29,8 +29,6 @@
 
 import socket
 import asyncore
-import string
-import sys
 
 from messages import nick, user, pong
 
@@ -53,7 +51,8 @@ class Connection(asyncore.dispatcher):
         self.forceSendMsg(nick.NickMsg(self.nick))
         self.forceSendMsg(user.UserMsg(self.nick, self.mode, self.name))
 
-        # By default, we process PING, 376, and 422 messages.
+        # By default, we respond to PING messages (by PONGing) and 001
+        # messages (by treating the user as registered).
         self.msgHandlers = {'PING': self.pingHandler,
                             '001': self.welcomeHandler}
 
@@ -111,68 +110,47 @@ class Connection(asyncore.dispatcher):
         for msg in self.dataIn[:lastEnd].split('\r\n'):
             msg.strip()
 
-            # Reset variables between iterations.
-            command = ''
-            prefix = ''
-            arguments = ''
-
-            # Make sure message is valid.
-            # Continuing here allows us to silently ignore CR-LF pairs between
-            # messages, which is dictated by the standard. (2.3.1)
+            # Make sure message is long enough.
+            # This code also allows CR-LF messages to be sent and silently
+            # ignored, as dictated by the standard. (2.3.1)
             if len(msg) <= 4:
                 continue
 
             # Handle prefix if it exists.
+            prefix = ''
             if msg.startswith(':'):
                 endPrefix = msg.find(' ')
                 prefix = msg[1:endPrefix]
                 msg = msg[endPrefix+1:]
 
+            # Extract the command.
             endCommand = msg.find(' ')
             command = msg[:endCommand]
             msg = msg[endCommand+1:]
-#
-# Argument parser... 
-# ---> iddqd should we move this to a seperate file/class?
-# ---> I think it is fine where it is
-# ---> (Marcel): what are the benefits of moving it?!??
-#
-# Developer Note (XoR):
-# (IRC Protocol arguments: no more than 15 arguments)
-#
-# Based on my limited knowledge of BNF notation, I deduce there are 2 ways arguments 
-# have to parsed, as they can occur in 2 different formats, namely:
-#
-# First type: n number of args then : and the rest which is treated as one 
-# (in this type n <= 14 and : must be present)
-#
-# Second type 14 arguments a space and more text, as there are 14 arguments preceding
-# the rest of the text, the : is not necessary however everything following the 14th
-# argument is treated as one argument
-#
 
-# Neil, for comments on your above idea and your logic below
-            if len(msg) > 1:
-                trailBeg = msg.find(':')
-                if trailBeg == 0:
-                    # The rest of the message is a single argument.
-                    # Skip the leading colon.
-                    arguments = [msg[1:]]
-                elif trailBeg != -1:
-                    # case 1 or 2
-                    trailing = msg[trailBeg+1:]
-                    msg = msg[:trailBeg].strip()
-                    arguments = msg.split(' ').append(trailing)
+            # Parse parameters if present.
+            params = msg.split(' ', 14)
+            if len(params) == 15:
+                # If the last parameter starts with a colon, remove it.
+                if params[14].startswith(':'):
+                    params[14] = params[14][1:]
+            else:
+                if len(params) == 1 and not params[0]:
+                    params = []
                 else:
-                    # has to be case 2...
-                    # if there is no :, we are either not bothered with n > 14
-                    # or there is no argument containing spaces, so if we split a max
-                    # of 14 times, then anything after 14 will be joined together
-                    arguments = msg.split(' ', 14)
+                    for i, item in enumerate(params):
+                        if item.startswith(':'):
+                            # A parameter has been found starting with a colon.
+                            # This parameter, and any remaining parameters,
+                            # must be joined.
+                            finalparam = ' '.join(params[i:])
+                            del params[i:]
+                            params.append(finalparam[1:]) # Exclude colon.
+                            break
 
-            self.callHandler(command, prefix, arguments)
+            self.callHandler(command, prefix, params)
 
-        self.dataIn = self.dataIn[lastEnd+2:] # skip '\r\n'
+        self.dataIn = self.dataIn[lastEnd+2:] # Exclude '\r\n'.
 
     def handle_write(self):
         """Called when data has been sent"""

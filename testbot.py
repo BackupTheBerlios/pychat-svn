@@ -37,7 +37,7 @@ class Bot(protocol.Connection):
         self.sendMsg(join.JoinMsg('#bytehouse'))
 
 def main():
-    a = Bot('za.shadowfire.org')
+    a = Bot('localhost')
     protocol.asyncore.loop()
 
 if __name__ == '__main__':
