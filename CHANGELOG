@@ -1,4 +1,4 @@
-09/06/2004 Marcel van Rensburg <iddqd@users.berlios.de>:
+09/06/2004 Marcel van Rensburg <iddqd@mail.berlios.de>:
 	* all files: renamed to lowercase
 	* Control.py, Parser.py, standard.py: merged code into protocol.py
 	* join.py, nick.py, pong.py, user.py: moved to irc/messages
@@ -12,3 +12,7 @@
 	* protocol.py: fixed indentation bug causing only last messages to be
 		processed, as opposed to each and every message
 	* all files: added license information
+
+10/06/2004 Neil Rutherford <xor@mail.berlios.de>
+	* protocol.py: rewrote registerHandler code, it seem to have disappeared...
+

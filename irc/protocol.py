@@ -53,7 +53,7 @@ class Connection(asyncore.dispatcher):
                             '001': self.welcomeHandler}
 
     def registerHandler(self, command, handler):
-        self.msgHandlers.has_key(command)
+        self.msgHandlers[command] = handler
 
     def unregisterHandler(self, command):
         if not self.msgHandlers.has_key(command):
