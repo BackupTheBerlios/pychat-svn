@@ -42,7 +42,7 @@ class Bot(protocol.Connection):
         self.registerHandler('433', self.collisionHandler)    # overrides the one in protocol.py
         self.sendMsg(join.JoinMsg('#bytehouse'))
         self.authUsers = ['xor','iddqd','dickshinnery']       # only respond to commands from
-        self.options = {'VERSION': '0.01a', 'REVISION':'Revision 16'}
+        self.options = {'VERSION': '0.01a', 'REVISION':'Revision 21'}
 
     def collisionHandler(self, prefix, args):                  # TODO: actually handle this somehow, for the moment just output error...
         print 'DEBUG: Nick Collision'
@@ -145,10 +145,6 @@ class Bot(protocol.Connection):
                 self.sendMsg(priv.PrivMsg(user,'NAME: ' + self.name)) 
                 self.sendMsg(priv.PrivMsg(user,'VERSION: ' + self.options['VERSION']))                 
                 self.sendMsg(priv.PrivMsg(user,'REVISION: ' + self.options['REVISION']))                 
-                self.sendMsg(priv.PrivMsg(user,'SERVER: ' + self.serverOptions['SERVER'])) 
-                self.sendMsg(priv.PrivMsg(user,'SERVERPORT: ' + str(self.serverOptions['PORT']))) 
-                self.sendMsg(priv.PrivMsg(user,'SERVERVERSION: ' + self.serverOptions['SERVERVERSION'])) 
-                self.sendMsg(priv.PrivMsg(user,'SERVERCREATED: ' + self.serverOptions['SERVERCREATED'])) 
                 self.sendMsg(priv.PrivMsg(user,'CHANNELS: ' + ','.join(self.channels)))
                 self.sendMsg(priv.PrivMsg(user,'This is a test bot written to test the functionality of the pychat protocol handler'))
                 self.sendMsg(priv.PrivMsg(user,'<end stats>')) 
@@ -156,7 +152,7 @@ class Bot(protocol.Connection):
                 self.sendMsg(priv.PrivMsg(user,'Error: Unrecognized command: ' + command))  # error, not recognised
                 
 def main():
-    a = Bot('localhost')
+    a = Bot('za.shadowfire.org')
     protocol.asyncore.loop()
 
 if __name__ == '__main__':

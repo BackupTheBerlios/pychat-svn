@@ -59,7 +59,6 @@ class Connection(asyncore.dispatcher):
         self.nick = alias
         self.name = name
         self.mode = mode
-        self.serverOptions = {'SERVER': host,'SERVERVERSION': 'UNKNOWN', 'SERVERCREATED': 'UNKNOWN', 'PORT': port}
         self.channels = []
 
         # Must send NICK and USER messages to establish connection and
@@ -77,10 +76,10 @@ class Connection(asyncore.dispatcher):
         
         self.msgHandlers = {'PING': self.pingHandler,       # PING messages, respond with PONG
                             '001': self.welcomeHandler,     # welcome to irc network
-                            '002': self.serverHandler,      # server name and version
-                            '003': self.createdHandler,     # compiled date and time
-                            '004': self.infoHandler,        # user and channel modes
-                            '005': self.supportHandler,     # options present on server
+                            '002': self.dummyHandler,       # server name and version
+                            '003': self.dummyHandler,       # compiled date and time
+                            '004': self.dummyHandler,       # user and channel modes
+                            '005': self.dummyHandler,       # options present on server
                             '250': self.dummyHandler,       # highest connection count
                             '251': self.dummyHandler,       # no users on server
                             '252': self.dummyHandler,       # no operators online
@@ -161,31 +160,6 @@ class Connection(asyncore.dispatcher):
         if self.tempOut:
             self.sendMsg(self.tempOut)
             del self.tempOut
-
-    def serverHandler(self, prefix, args):
-        # using regular expressions
-        matches = re.match(r'^Your host is (\S+), running version (\S+)$',args[1])
-        if matches:
-            self.serverOptions['SERVER'] = matches.group(1)
-            self.serverOptions['SERVERVERSION'] = matches.group(2)
-
-    def createdHandler(self, prefix, args):
-        matches = re.match(r'^This server was (cobbled together|created) ',args[1])
-        if matches:
-            self.serverOptions['SERVERCREATED'] = args[1][matches.end():]
-
-    def infoHandler(self, prefix, args):
-#       self.serverOptions['SERVER'] = args[1] # uncomment if want only the host name, not the host[ip/port] from message 002
-        self.serverOptions['USERMODES'] = args[3]
-        self.serverOptions['CHANNELMODES'] = args[4]
-
-    def supportHandler(self, prefix, args):
-        for arg in args[1:-3]:
-            option = arg.split('=',1)
-            if len(option) > 1:
-                self.serverOptions[option[0]] = option[1]
-            else:
-                self.serverOptions[option[0]] = True
 
     def dummyHandler(self, prefix, args):
         print ' '.join(args)
