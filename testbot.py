@@ -35,25 +35,24 @@ class Bot(protocol.Connection):
 
     def __init__(self, host, nick='pyuser', name='test', mode=0):
         protocol.Connection.__init__(self, host, nick, name, mode)
-        self.registerHandler('PRIVMSG', self.privmsgHandler)  # overrides the one in protocol.py (name has to differ)
-        self.registerHandler('ERROR', self.errorHandler)      # overrides the one in protocol.py (name has to differ)
-        self.registerHandler('KICK', self.kickHandler)        # overrides the one in protocol.py (name has to differ)
-        self.registerHandler('JOIN', self.myjoinHandler)      # overrides the one in protocol.py (name has to differ)
+        self.registerHandler('PRIVMSG', self.privmsgHandler)  # overrides the one in protocol.py
+        self.registerHandler('ERROR', self.errorHandler)      # overrides the one in protocol.py
+        self.registerHandler('KICK', self.kickHandler)        # overrides the one in protocol.py
+        self.registerHandler('JOIN', self.joinHandler)        # overrides the one in protocol.py
         self.sendMsg(join.JoinMsg('#bytehouse'))
         self.authUsers = ['xor','iddqd','dickshinnery']       # only respond to commands from
-        self.options = {'VERSION': '0.01a', 'REVISION':'Revision 14'}
+        self.options = {'VERSION': '0.01a', 'REVISION':'Revision 16'}
 
     def errorHandler(self, prefix, args):
         print ' '.join(args)                                  # currently only prints out the args, needs to handle errors
 
     def kickHandler(self, prefix, args):
         print 'KICK: ', ' '.join(args)
-        if args[1] == self.nick:                                 # if kicked rejoin channel
+        if args[1] == self.nick:                              # if kicked rejoin channel
             self.sendMsg(join.JoinMsg(args[0]))
 
-    def myjoinHandler(self, prefix, args):
-        self.joinHandler(prefix,args)                         # call the protocol joinHandler, adds channel to channels list
-
+    def joinHandler(self, prefix, args):                      # XXX: super() doesnt work, its for types not classes apparently
+        protocol.Connection.joinHandler(self,prefix,args)     # call the protocol joinHandler, adds channel to channels list, ugly way of doing it :(
         user = prefix[:prefix.find('!')]
         if user != self.nick:                                 # if not me, then welcome user
             if user.lower() in self.authUsers:
@@ -123,6 +122,16 @@ class Bot(protocol.Connection):
                 self.sendMsg(leave.LeaveMsg(chan,params))           # send PART message
             elif command == 'RENAME':
                 self.sendMsg(nick.NickMsg(params))                  # change NICK, send NICK message
+            elif command == 'COMMANDS':
+                self.sendMsg(priv.PrivMsg(user,'<begin commands>')) 
+                self.sendMsg(priv.PrivMsg(user,'COMMANDS AVAILABLE:'))
+                self.sendMsg(priv.PrivMsg(user,'JOIN - join channel(s): JOIN <channel list (seperated by a comma)>'))
+                self.sendMsg(priv.PrivMsg(user,'LEAVE - leave channel(s): LEAVE <channel list (seperated by a comma)> <message>'))
+                self.sendMsg(priv.PrivMsg(user,'QUIT - quit server: QUIT <quit msg>'))
+                self.sendMsg(priv.PrivMsg(user,'STATS - displays stats: STATS'))
+                self.sendMsg(priv.PrivMsg(user,'SAY - speak through the bot: SAY <channel/user> <what to say>'))
+                self.sendMsg(priv.PrivMsg(user,'RENAME - changes the bots name: RENAME <new name>'))                
+                self.sendMsg(priv.PrivMsg(user,'<end commands>')) 
             elif command == 'STATS':
                 self.sendMsg(priv.PrivMsg(user,'<begin stats>')) 
                 self.sendMsg(priv.PrivMsg(user,'pychat Project: Python IRC Client')) 
@@ -142,7 +151,7 @@ class Bot(protocol.Connection):
                 self.sendMsg(priv.PrivMsg(user,'Error: Unrecognized command: ' + command))  # error, not recognised
                 
 def main():
-    a = Bot('localhost')
+    a = Bot('za.shadowfire.org')
     protocol.asyncore.loop()
 
 if __name__ == '__main__':

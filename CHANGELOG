@@ -1,3 +1,7 @@
+14/06/2004 Neil Rutherford <xor@mail.berlios.de>
+	* testbot.py: added commands list
+	* protocol.py: added topic handler
+	
 13/06/2004 Neil Rutherford <xor@mail.berlios.de>
 	* protocol.py: added basic exception handling while connecting (bug report #001983)
 	* connection.py, unhandled.py: added exceptions sub module

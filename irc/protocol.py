@@ -109,6 +109,7 @@ class Connection(asyncore.dispatcher):
                             'PART': self.partHandler,       # confirm leaving a channel
                             'ERROR': self.dummyHandler,     # error message handler, should be overriden
                             'PRIVMSG': self.dummyHandler,   # private message recv (to channel or client)
+                            'TOPIC': self.ignoreHandler,    # topic message (when only person in topic)
                             'NOTICE': self.noticeHandler}   # server notices
 
     def registerHandler(self, command, handler):
