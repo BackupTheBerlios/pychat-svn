@@ -48,6 +48,11 @@ class Connection(asyncore.dispatcher):
         self.sendMsg(nick.NickMsg(self.nick))
         self.sendMsg(user.UserMsg(self.nick, self.mode, self.name))
 
+        # Must send NICK and USER messages to establish connection and
+        # register the user.
+        self.forceSendMsg(nick.NickMsg(self.nick))
+        self.forceSendMsg(user.UserMsg(self.nick, self.mode, self.name))
+
         # By default, we process PING, 376, and 422 messages.
         self.msgHandlers = {'PING': self.pingHandler,
                             '001': self.welcomeHandler}
