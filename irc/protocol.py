@@ -45,8 +45,6 @@ class Connection(asyncore.dispatcher):
         self.nick = alias
         self.name = name
         self.mode = mode
-        self.sendMsg(nick.NickMsg(self.nick))
-        self.sendMsg(user.UserMsg(self.nick, self.mode, self.name))
 
         # Must send NICK and USER messages to establish connection and
         # register the user.
