@@ -156,7 +156,7 @@ class Bot(protocol.Connection):
                 self.sendMsg(priv.PrivMsg(user,'Error: Unrecognized command: ' + command))  # error, not recognised
                 
 def main():
-    a = Bot('za.shadowfire.org')
+    a = Bot('localhost')
     protocol.asyncore.loop()
 
 if __name__ == '__main__':

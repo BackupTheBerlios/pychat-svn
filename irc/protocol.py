@@ -136,10 +136,11 @@ class Connection(asyncore.dispatcher):
         
         print 'JOIN: ',' '.join(args)
 
-    def partHandler(self, prefix, args):
+    def partHandler(self, prefix, args):        # FIXME: doesnt always seem to remove channel when leaving
         user = prefix[:prefix.find('!')]
         if user == self.nick: 
             self.channels.remove(args[0].lower())
+            print 'LEFT CHANNEL: ',' '.join(args)    
 
         print 'PART: ',' '.join(args)
 
