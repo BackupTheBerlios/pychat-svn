@@ -29,6 +29,7 @@
 
 import socket
 import asyncore
+from time import strftime,localtime
 
 class Connection(asyncore.dispatcher):
 
@@ -86,6 +87,9 @@ class Connection(asyncore.dispatcher):
                 
     def onPing(self, prefix, args):
         self.pong(args[0])
+
+    def onPrivmsg(self, prefix, args):
+        args = self.ctcpParser(prefix, args)
 
     def onWelcome(self, prefix, args):
         self.userRegistered = True
@@ -190,6 +194,51 @@ class Connection(asyncore.dispatcher):
             self.tempOut += str(message) + '\r\n'
 
 #
+#   CTCP Parsing and Handling Code (can be overriden by bots)
+#
+    def ctcpParser(self, prefix, args):
+        print 'DEBUG: CTCP:', args
+        # CTCP messages can be embedded... so have to find and remove them...
+        ctcpMsgs = []
+        while args[1].count('\001') > 0:   
+            start = args[1].find('\001')
+            end = args[1].find('\001', start+1)
+            ctcpMsgs.append(args[1][start+1:end])
+            args[1] = args[1][:start] + args[1][end+1:]
+
+        for msg in ctcpMsgs:
+            space = msg.find(' ')
+            
+            if space != -1:
+                command = msg[:space]
+                params = (msg[space+1:])
+            else:
+                command = msg
+                params = ''
+                
+            self.ctcpCallHandler(prefix, command, params)
+
+    def ctcpDefaultHandler(self, prefix, args):
+        pass
+
+    def ctcpCallHandler(self, prefix, command, args):
+        try:
+            getattr(self, "ctcpOn" + command.capitalize())(prefix, args)
+        except AttributeError, inst:
+            self.ctcpDefaultHandler(prefix, command, args)
+
+    def ctcpOnVersion(self, prefix, args):
+        pass
+
+    def ctcpOnPing(self, prefix, args):
+        user = prefix[:prefix.find('!')]
+        self.notice(user,'\001PING %s\001' % args)
+
+    def ctcpOnTime(self, prefix, args):
+        user = prefix[:prefix.find('!')]
+        self.notice(user,'\001TIME %s\001' % strftime("%a, %d %b %Y %H:%M:%S %Z", localtime()))
+
+#
 # ----- below this line, adding messages (originally submodules) -------
 #
 
@@ -213,3 +262,6 @@ class Connection(asyncore.dispatcher):
 
     def leave(self, channel, message):
         self.sendMsg('PART %s :%s' % (channel, message))
+
+    def notice(self, who, message):
+        self.sendMsg('NOTICE %s :%s' % (who, message))

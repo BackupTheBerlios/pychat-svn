@@ -44,6 +44,10 @@ class Bot(protocol.Connection):
         else:
             print 'DEBUG: Unhandled num reply:', command
 
+    def ctcpOnVersion(self, prefix, args): # TODO: hardcoded atm... must change later
+        user = prefix[:prefix.find('!')]
+        self.notice(user,'\001VERSION %s %s %s\001' % ('mIRC','v6.03','Khaled Mardam-Bey'))
+
     def onError(self, prefix, args):
         print ' '.join(args)   # currently only prints out the args,
                                # TODO: needs to handle errors
@@ -72,6 +76,10 @@ class Bot(protocol.Connection):
                 self.privateMsg(args[0],'Welcome to %s, %s' % (args[0], user))
 
     def onPrivmsg(self, prefix, args):
+        protocol.Connection.onPrivmsg(self, prefix, args)
+        # is there a message left? After CTCP processing...
+        if len(args[1]) == 0:
+            return
         user = prefix[:prefix.find('!')]
         # is the message from an authorised user?
         if user.lower() in self.authUsers:  
