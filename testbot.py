@@ -136,6 +136,7 @@ class Bot(protocol.Connection):
                     params = params[space:].strip()
                 else:
                    self.privmsg(user, 'Error: Not enough parameters')
+                   return
                 self.privmsg(dest, params)
             elif command == 'JOIN':
                 for param in params.split(','):
