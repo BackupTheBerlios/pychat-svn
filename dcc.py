@@ -29,6 +29,7 @@
 
 import socket
 import struct
+import thread
 
 class protocol:
     def dccChat(self, user, host, port):
@@ -36,13 +37,11 @@ class protocol:
     
     def dccReceive(self, user, host, filename, port, size):
 #       raise "Not Done Yet... Try again later..."
-        
-        #XXX: Really *buggy* code, basic idea from internet source...
-        # http://www.zob.ne.jp/~hide-t/comp/mysoftware/dccrecv.py
-        #
-        #TODO: should rewrite the code to use asyncore or threads
-        #
-        
+        thread.start_new_thread(self.threadDoRecv, (user, host, filename, port, size))
+
+    def threadDoRecv(self, user, host, filename, port, size):
+        #XXX: seems to be working fine, using threads...
+               
         IP = '%d.%d.%d.%d' % struct.unpack('>BBBB', struct.pack('>L', host))
         
         print 'DEBUG: DCC RECV %s From %s' % (filename,IP)
