@@ -42,7 +42,6 @@ class Connection(asyncore.dispatcher):
         self.nick = nick
         self.name = name
         self.mode = mode
-        self.channels = []
 
         # Must send NICK and USER messages to establish connection and
         # register the user.
@@ -50,7 +49,6 @@ class Connection(asyncore.dispatcher):
         self.user(self.nick, self.mode, self.name)
 
     def defaultNumericHandler(self, prefix, command, args):
-        # ignoring message, can be overriden by bot...
         pass
 
     def defaultHandler(self, prefix, command, args):
@@ -62,21 +60,16 @@ class Connection(asyncore.dispatcher):
             self.nick = args[0]
 
     def onJoin(self, prefix, args):
-        user = prefix[:prefix.find('!')]
-        if user == self.nick:
-            self.channels.append(args[0].lower())
+        pass
 
     def onPart(self, prefix, args):
-        user = prefix[:prefix.find('!')]
-        if user == self.nick:
-            self.channels.remove(args[0].lower())
+        pass
 
     def callHandler(self, command, prefix='', args=''):
         if command.isdigit():
             if command == '001':
                 self.onRegister(prefix, args)
-            else:
-                self.defaultNumericHandler(prefix, command, args)
+            self.defaultNumericHandler(prefix, command, args)
         else:
             try:
                 getattr(self, "on" + command.capitalize())(prefix, args)
@@ -159,7 +152,7 @@ class Connection(asyncore.dispatcher):
         self.dataIn = self.dataIn[lastEnd+2:] # Exclude '\r\n'.
 
     def handle_write(self):
-        """Called when data has been sent"""
+        """Called when data can been sent"""
         sent = self.send(self.dataOut)
         self.dataOut = self.dataOut[sent:]
 
