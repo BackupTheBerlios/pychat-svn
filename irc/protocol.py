@@ -31,7 +31,6 @@ import socket
 import asyncore
 import re
 
-from messages import nick, user, pong
 from exceptions import connection, unhandled
 
 class Connection(asyncore.dispatcher):
@@ -56,15 +55,15 @@ class Connection(asyncore.dispatcher):
         self.tempOut = ''
         self.dataOut = ''
         self.dataIn = ''
-        self.nick = alias
+        self.myNick = alias
         self.name = name
         self.mode = mode
         self.channels = []
 
         # Must send NICK and USER messages to establish connection and
         # register the user.
-        self.forceSendMsg(nick.NickMsg(self.nick))
-        self.forceSendMsg(user.UserMsg(self.nick, self.mode, self.name))
+        self.forceSendMsg('NICK %s' % self.myNick)
+        self.forceSendMsg('USER %s %u * :%s' % (self.myNick, self.mode, self.name))
 
         # By default, we respond to PING messages (by PONGing) 
         # 001 messages (by treating the user as registered)
@@ -125,19 +124,19 @@ class Connection(asyncore.dispatcher):
     
     def nickHandler(self, prefix, args):
         user = prefix[:prefix.find('!')]
-        if user == self.nick: 
-            self.nick = args[0]
+        if user == self.myNick: 
+            self.myNick = args[0]
             
     def joinHandler(self, prefix, args):
         user = prefix[:prefix.find('!')]
-        if user == self.nick: 
+        if user == self.myNick: 
             self.channels.append(args[0].lower())
         
         print 'JOIN: ',' '.join(args)
 
-    def partHandler(self, prefix, args):        # FIXME: doesnt always seem to remove channel when leaving
-        user = prefix[:prefix.find('!')]
-        if user == self.nick: 
+    def partHandler(self, prefix, args):      # FIXME: doesnt always seem
+        user = prefix[:prefix.find('!')]      # to remove channel when leaving
+        if user == self.myNick: 
             self.channels.remove(args[0].lower())
             print 'LEFT CHANNEL: ',' '.join(args)    
 
@@ -153,7 +152,7 @@ class Connection(asyncore.dispatcher):
             self.defaultHandler(prefix, command, args)
 
     def pingHandler(self, prefix, args):
-        self.forceSendMsg(pong.PongMsg(args[0]))
+        self.pong(args[0])
 
     def welcomeHandler(self, prefix, args):
         self.userRegistered = True
@@ -259,3 +258,28 @@ class Connection(asyncore.dispatcher):
             self.dataOut += str(message) + '\r\n'
         else:
             self.tempOut += str(message) + '\r\n'
+
+#
+# ----- below this line, adding messages (originally submodules) -------
+#
+
+    def pong(self, arg):
+        self.sendMsg('PONG :%s' % arg)
+
+    def join(self, channel):
+        self.sendMsg('JOIN %s' % channel)
+
+    def nick(self, nick):
+        self.sendMsg('NICK %s' % nick)
+
+    def privateMsg(self, who, message):
+        self.sendMsg('PRIVMSG %s :%s' % (who, message))
+
+    def user(self, user, mode, name):
+        self.sendMsg('USER %s %u * :%s' % (user, mode, name))
+
+    def quit(self, message):
+        self.sendMsg('QUIT :%s' % message)
+
+    def leave(self, channel, message):
+        self.sendMsg('PART %s :%s' % (channel, message))
