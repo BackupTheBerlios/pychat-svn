@@ -1,4 +1,8 @@
 13/06/2004 Neil Rutherford <xor@mail.berlios.de>
+	* protocol.py: added basic exception handling while connecting (bug report #001983)
+	* connection.py, unhandled.py: added exceptions sub module
+
+13/06/2004 Neil Rutherford <xor@mail.berlios.de>
     * protocol.py: added/updated standard message handlers
                    added channel list, and JOIN and PART handlers
                    which update the channel list

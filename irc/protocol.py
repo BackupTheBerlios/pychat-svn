@@ -32,6 +32,7 @@ import asyncore
 import re
 
 from messages import nick, user, pong
+from exceptions import connection, unhandled
 
 class Connection(asyncore.dispatcher):
 
@@ -39,7 +40,19 @@ class Connection(asyncore.dispatcher):
         asyncore.dispatcher.__init__(self)
         self.userRegistered = False
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connect((host, port))
+
+        try:
+            self.connect((host, port))
+        except socket.error, inst:
+            # need to work on this... I was thinkin something similar to the message handlers, 
+            # like a dictionary of error codes linked to an exception class????
+            #XXX: Temporary: if 61 (Connection refused) raise connection.Refused, else unhandled.ProtocolException
+            if inst.args[0] == 61:
+                raise connection.Refused(host)
+            else:
+                print inst.args[0]
+                raise unhandled.ProtocolException(inst.args)
+            
         self.tempOut = ''
         self.dataOut = ''
         self.dataIn = ''
@@ -85,6 +98,7 @@ class Connection(asyncore.dispatcher):
                             '353': self.ignoreHandler,      # names list
                             '366': self.ignoreHandler,      # end of names list
                             '403': self.dummyHandler,       # no such channel
+                            '404': self.ignoreHandler,      # cannot send to channel
                             '461': self.ignoreHandler,      # not enough parameters
                             '477': self.ignoreHandler,      # channel doesnt support modes (need registered nick???)
                             'MODE': self.dummyHandler,      # mode change (user or channel)
