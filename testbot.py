@@ -46,6 +46,15 @@ class Bot(protocol.Connection):
         self.rejoin = config.getboolean('altleech', 'rejoin_on_kick')
         self.reconnect = config.getboolean('altleech', 'reconnect_on_drop')
         protocol.Connection.__init__(self, server, nick, name, mode)
+        self.considerReconnect = True
+
+    def handle_close(self):
+        if self.considerReconnect and self.reconnect:
+            protocol.Connection.__init__(self, self.server, self.nick, self.name, self.mode)
+
+    def quit(self, message):
+        protocol.Connection.quit(self, message)
+        self.considerReconnect = False
 
     def onRegister(self, prefix, args):
         for chan in self.channels:

@@ -33,12 +33,13 @@ from time import strftime, localtime
 
 class Connection(asyncore.dispatcher):
 
-    def __init__(self, host, nick, name, mode, port=6667):
+    def __init__(self, server, nick, name, mode, port=6667):
         asyncore.dispatcher.__init__(self)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connect((host, port))
+        self.connect((server, port))
         self.dataOut = ''
         self.dataIn = ''
+        self.server = server
         self.nick = nick
         self.name = name
         self.mode = mode
