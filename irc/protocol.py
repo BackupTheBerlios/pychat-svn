@@ -193,23 +193,18 @@ class Connection(asyncore.dispatcher):
 
             # Parse parameters if present.
             params = msg.split(' ', 14)
-            if len(params) == 15:
-                # If the last parameter starts with a colon, remove it.
-                if params[14].startswith(':'):
-                    params[14] = params[14][1:]
+            if len(params) == 1 and not params[0]:
+                params = []
             else:
-                if len(params) == 1 and not params[0]:
-                    params = []
-                else:
-                    for i, item in enumerate(params):
-                        if item.startswith(':'):
-                            # A parameter has been found starting with a colon.
-                            # This parameter, and any remaining parameters,
-                            # must be joined.
-                            finalparam = ' '.join(params[i:])
-                            del params[i:]
-                            params.append(finalparam[1:]) # Exclude colon.
-                            break
+                for i, item in enumerate(params):
+                    if item.startswith(':'):
+                        # A parameter has been found starting with a colon.
+                        # This parameter, and any remaining parameters,
+                        # must be joined.
+                        finalparam = ' '.join(params[i:])
+                        del params[i:]
+                        params.append(finalparam[1:]) # Exclude colon.
+                        break
 
             self.callHandler(command, prefix, params)
 
