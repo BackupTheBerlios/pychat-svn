@@ -28,26 +28,33 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import ConfigParser
 from irc import protocol
 
 class Bot(protocol.Connection):
 
-    def __init__(self, host, nick='pyuser', name='test', mode=0):
-        protocol.Connection.__init__(self, host, nick, name, mode)
+    def __init__(self):
         self.authUsers = ['xor', 'iddqd'] # only respond to commands from
         self.options = {'VERSION': '0.01a', 'REVISION': 'Revision 21'}
+        config = ConfigParser.ConfigParser()
+        config.read('altleech.cfg')
+        self.channels = config.get('altleech', 'channels').split()
+        server = config.get('altleech', 'server')
+        nick = config.get('altleech', 'nick')
+        name = config.get('altleech', 'name')
+        mode = config.getint('altleech', 'mode')
+        self.rejoin = config.getboolean('altleech', 'rejoin_on_kick')
+        self.reconnect = config.getboolean('altleech', 'reconnect_on_drop')
+        protocol.Connection.__init__(self, server, nick, name, mode)
 
     def onRegister(self, prefix, args):
-        self.join('#bytehouse')
+        for chan in channels:
+            self.join(chan)
 
-    def defaultNumericHandler(self, prefix, command, args):     # overriden
+    def defaultNumericHandler(self, prefix, command, args):
         user = args[0]
         if user == self.nick:
             print '***', ' '.join(args[1:])
-        #if command == '433':
-        #    print 'DEBUG: Nick Collision'
-        #else:
-        #    print 'DEBUG: Unhandled num reply:', command
 
     def ctcpOnVersion(self, prefix, args): # TODO: hardcoded atm... must change later
         user = prefix[:prefix.find('!')]
@@ -62,23 +69,31 @@ class Bot(protocol.Connection):
 
     def onKick(self, prefix, args):
         print 'KICK:', ' '.join(args)
-        if args[1] == self.nick:      # if kicked rejoin channel
-            self.channels.remove(args[0].lower())
-            self.join(args[0])
+        channel = args[0]
+        user = args[1]
+        if user == self.nick:
+            self.channels.remove(channel.lower())
+            if self.rejoin:
+                self.join(channel)
 
     def onPart(self, prefix, args):
-        protocol.Connection.onPart(self, prefix, args)
+        user = prefix[:prefix.find('!')]
+        channel = args[0]
+        if user == self.nick:
+            self.channels.remove(channel.lower())
         print 'PART:', ' '.join(args)
 
     def onJoin(self, prefix, args):
-        protocol.Connection.onJoin(self, prefix, args) # call protocol onJoin
         user = prefix[:prefix.find('!')]
+        channel = args[0]
         if user != self.nick:
             print 'JOIN:', ' '.join(args)
             if user.lower() in self.authUsers:
-                self.privmsg(args[0], 'Welcome to %s, the all powerful %s, thank you for blessing us with your presence' % (args[0], user))
+                self.privmsg(channel, 'Welcome to %s, the all powerful %s, thank you for blessing us with your presence' % (args[0], user))
             else:
-                self.privmsg(args[0], 'Welcome to %s, %s' % (args[0], user))
+                self.privmsg(channel, 'Welcome to %s, %s' % (channel, user))
+        else:
+            self.channels.append(channel.lower())
 
     def onPrivmsg(self, prefix, args):
         protocol.Connection.onPrivmsg(self, prefix, args)
@@ -173,7 +188,7 @@ class Bot(protocol.Connection):
                 self.privmsg(user, 'Error: Unrecognized command: ' + command) 
 
 def main():
-    a = Bot('localhost')
+    a = Bot()
     protocol.asyncore.loop()
 
 if __name__ == '__main__':
