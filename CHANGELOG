@@ -1,3 +1,6 @@
+13/06/2004 Neil Rutherford <xor@mail.berlios.de>
+	* protocol.py: added standard message handlers
+
 10/06/2004 Neil Rutherford <xor@mail.berlios.de>
 	* protocol.py: rewrote registerHandler code, it seem to have disappeared...
 

@@ -29,6 +29,7 @@
 
 import socket
 import asyncore
+import re
 
 from messages import nick, user, pong
 
@@ -45,16 +46,46 @@ class Connection(asyncore.dispatcher):
         self.nick = alias
         self.name = name
         self.mode = mode
+        self.serverOptions = {'SERVER': host,'SERVERVERSION': 'UNKNOWN', 'SERVERCREATED': 'UNKNOWN'}
 
         # Must send NICK and USER messages to establish connection and
         # register the user.
         self.forceSendMsg(nick.NickMsg(self.nick))
         self.forceSendMsg(user.UserMsg(self.nick, self.mode, self.name))
 
-        # By default, we respond to PING messages (by PONGing) and 001
-        # messages (by treating the user as registered).
-        self.msgHandlers = {'PING': self.pingHandler,
-                            '001': self.welcomeHandler}
+        # By default, we respond to PING messages (by PONGing) 
+        # 001 messages (by treating the user as registered)
+        # 002 messages (by storing server name and version)
+        # 003 messages (by storing compiled time of server)
+        # 004 messages (by storing user and channel modes)
+        # 005 messages (by storing all options supported by server)
+        # NOTICE messages (by printing out the Notices)
+        
+        self.msgHandlers = {'PING': self.pingHandler,       # PING messages, respond with PONG
+                            '001': self.welcomeHandler,     # welcome to irc network
+                            '002': self.serverHandler,      # server name and version
+                            '003': self.createdHandler,     # compiled date and time
+                            '004': self.infoHandler,        # user and channel modes
+                            '005': self.supportHandler,     # options present on server
+                            '251': self.dummyHandler,       # no users on server
+                            '252': self.dummyHandler,       # no operators online
+                            '253': self.dummyHandler,       # unknown connections
+                            '254': self.dummyHandler,       # no of channels formed
+                            '255': self.dummyHandler,       # no of clients and servers
+                            '265': self.dummyHandler,       # current local users
+                            '266': self.dummyHandler,       # current global users
+                            '375': self.dummyHandler,       # motd start
+                            '372': self.dummyHandler,       # motd text
+                            '376': self.ignoreHandler,      # motd end
+                            '422': self.ignoreHandler,      # no motd
+                            '332': self.ignoreHandler,      # topic
+                            '333': self.ignoreHandler,      # unknown: channel founder I think not in rfc                   
+                            '353': self.ignoreHandler,      # names list
+                            '366': self.ignoreHandler,      # end of names list
+                            'MODE': self.dummyHandler,      # mode change (user or channel)
+                            'JOIN': self.ignoreHandler,     # confirm join to channel
+                            'PRIVMSG': self.dummyHandler,   # private message recv (to channel or client)
+                            'NOTICE': self.noticeHandler}   # server notices
 
     def registerHandler(self, command, handler):
         self.msgHandlers[command] = handler
@@ -65,8 +96,9 @@ class Connection(asyncore.dispatcher):
         del self.msgHandlers[command]
 
     def defaultHandler(self, prefix, command, args):
-        #raise 'Default handler called'
-        #XXX: passing for now...
+        raise 'Default handler called: ', command
+    
+    def ignoreHandler(self, prefix, args):
         pass
 
     def callHandler(self, command, prefix='', args=''):
@@ -84,6 +116,37 @@ class Connection(asyncore.dispatcher):
             self.sendMsg(self.tempOut)
             del self.tempOut
 
+    def serverHandler(self, prefix, args):
+        # using regular expressions
+        matches = re.match(r'^Your host is (\S+), running version (\S+)$',args[1])
+        if matches:
+            self.serverOptions['SERVER'] = matches.group(1)
+            self.serverOptions['SERVERVERSION'] = matches.group(2)
+
+    def createdHandler(self, prefix, args):
+        matches = re.match(r'^This server was (cobbled together|created) ',args[1])
+        if matches:
+            self.serverOptions['SERVERCREATED'] = args[1][matches.end():]
+
+    def infoHandler(self, prefix, args):
+#       self.serverOptions['SERVER'] = args[1] # uncomment if want only the host name, not the host[ip/port] from message 002
+        self.serverOptions['USERMODES'] = args[3]
+        self.serverOptions['CHANNELMODES'] = args[4]
+
+    def supportHandler(self, prefix, args):
+        for arg in args[1:-3]:
+            option = arg.split('=',1)
+            if len(option) > 1:
+                self.serverOptions[option[0]] = option[1]
+            else:
+                self.serverOptions[option[0]] = True
+
+    def dummyHandler(self, prefix, args):
+        print ' '.join(args)
+        
+    def noticeHandler(self, prefix, args):
+        print 'SERVER NOTICE: ' + ' '.join(args)
+
     def handle_connect(self):
         """Called when connection established."""
         pass
@@ -98,7 +161,7 @@ class Connection(asyncore.dispatcher):
         if not data:
             self.close()
             return
-        print '[<<<]\t', data
+     #   print '[<<<]\t', data
         self.dataIn += data
 
         # buffering... check if last message is complete
@@ -154,7 +217,7 @@ class Connection(asyncore.dispatcher):
 
     def handle_write(self):
         """Called when data has been sent"""
-        print '[>>>]\t', self.dataOut
+      #  print '[>>>]\t', self.dataOut
         sent = self.send(self.dataOut)
         self.dataOut = self.dataOut[sent:]
 
@@ -181,4 +244,3 @@ class Connection(asyncore.dispatcher):
             self.dataOut += str(message) + '\r\n'
         else:
             self.tempOut += str(message) + '\r\n'
-

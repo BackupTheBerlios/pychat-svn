@@ -1,3 +1,4 @@
+#!/usr/local/bin/python
 # Copyright (c) 2004, Marcel van Rensburg and Neil Rutherford.
 # All rights reserved.
 #
