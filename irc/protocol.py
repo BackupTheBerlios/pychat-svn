@@ -38,8 +38,10 @@ class Connection(asyncore.dispatcher):
 
     def __init__(self, host, alias, name, mode, port=6667):
         asyncore.dispatcher.__init__(self)
+        self.userRegistered = False
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect((host, port))
+        self.tempOut = ''
         self.dataOut = ''
         self.dataIn = ''
         self.nick = alias
@@ -181,6 +183,11 @@ class Connection(asyncore.dispatcher):
     def writable(self):
         """Indicates if anything needs to be written."""
         return len(self.dataOut) > 0
+
+    def forceSendMsg(self, message):
+        """Forces a message to be sent."""
+
+        self.dataOut += str(message) + '\r\n'
 
     def sendMsg(self, message):
         """Queues a message for sending to the IRC server.
