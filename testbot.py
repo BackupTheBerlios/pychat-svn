@@ -39,9 +39,14 @@ class Bot(protocol.Connection):
         self.registerHandler('ERROR', self.errorHandler)      # overrides the one in protocol.py
         self.registerHandler('KICK', self.kickHandler)        # overrides the one in protocol.py
         self.registerHandler('JOIN', self.joinHandler)        # overrides the one in protocol.py
+        self.registerHandler('433', self.collisionHandler)    # overrides the one in protocol.py
         self.sendMsg(join.JoinMsg('#bytehouse'))
         self.authUsers = ['xor','iddqd','dickshinnery']       # only respond to commands from
         self.options = {'VERSION': '0.01a', 'REVISION':'Revision 16'}
+
+    def collisonHandler(self, prefix, args):                  # TODO: actually handle this somehow, for the moment just output error...
+        print 'DEBUG: Nick Collision'
+
 
     def errorHandler(self, prefix, args):
         print ' '.join(args)                                  # currently only prints out the args, needs to handle errors

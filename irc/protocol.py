@@ -99,6 +99,7 @@ class Connection(asyncore.dispatcher):
                             '366': self.ignoreHandler,      # end of names list
                             '403': self.dummyHandler,       # no such channel
                             '404': self.ignoreHandler,      # cannot send to channel
+                            '433': self.ignoreHandler,      # nick collision (TODO: need error checking)
                             '461': self.ignoreHandler,      # not enough parameters
                             '477': self.ignoreHandler,      # channel doesnt support modes (need registered nick???)
                             'MODE': self.dummyHandler,      # mode change (user or channel)
