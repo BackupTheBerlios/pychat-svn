@@ -195,16 +195,17 @@ class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
                 self.part(chan, params)
             elif command == 'RENAME':
                 self.newnick(params)
-            elif command == 'COMMANDS':       
+            elif command == 'COMMANDS' or command == 'HELP':       
                 self.privmsg(user, '<begin commands>')
                 self.privmsg(user, 'COMMANDS AVAILABLE:')
-                self.privmsg(user, 'JOIN - join channel(sslimmed down event handlers): JOIN <channel list (seperated by a comma)>')
+                self.privmsg(user, 'JOIN - join channel(s): JOIN <channel list (seperated by a comma)>')
                 self.privmsg(user, 'LEAVE - leave channel(s): LEAVE <channel list (seperated by a comma)> <message>')
                 self.privmsg(user, 'QUIT - quit server: QUIT <quit msg>')
                 self.privmsg(user, 'STATS - displays stats: STATS')
                 self.privmsg(user, 'HOP - leave then rejoin channel: HOP <channel>')
                 self.privmsg(user, 'RELOAD - reloads config file: RELOAD')
                 self.privmsg(user, 'DROP - closes connection: DROP')
+                self.privmsg(user, 'AUTHUSERS - displays authorised users: AUTHUSERS')
                 self.privmsg(user, 'SAY - speak through the bot: SAY <channel/user> <what to say>')
                 self.privmsg(user, 'RENAME - changes the bots name: RENAME <new name>')
                 self.privmsg(user, '<end commands>')
@@ -222,6 +223,8 @@ class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
             elif command == 'RELOAD':
                 self.loadOptions()
                 self.privmsg(user, 'Config File Reloaded')
+            elif command == 'AUTHUSERS':
+                self.privmsg(user, 'I Respond to: ' + ' '.join(self.authUsers))
             elif command == 'HOP':
                 self.part(params, 'Hopping...')
                 self.join(params)
