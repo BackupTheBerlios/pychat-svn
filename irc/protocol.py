@@ -29,16 +29,14 @@
 
 import socket
 import asyncore
-from time import strftime,localtime
+from time import strftime, localtime
 
 class Connection(asyncore.dispatcher):
 
     def __init__(self, host, nick, name, mode, port=6667):
         asyncore.dispatcher.__init__(self)
-        self.userRegistered = False
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connect((host, port))    
-        self.tempOut = ''
+        self.connect((host, port))
         self.dataOut = ''
         self.dataIn = ''
         self.nick = nick
@@ -48,58 +46,55 @@ class Connection(asyncore.dispatcher):
 
         # Must send NICK and USER messages to establish connection and
         # register the user.
-        self.forceSendMsg('NICK %s' % self.nick)
-        self.forceSendMsg('USER %s %u * :%s' % (self.nick, self.mode, self.name))
+        self.newnick(self.nick)
+        self.user(self.nick, self.mode, self.name)
 
     def defaultNumericHandler(self, prefix, command, args):
         # ignoring message, can be overriden by bot...
         pass
-    
+
     def defaultHandler(self, prefix, command, args):
         pass
-        
+
     def onNick(self, prefix, args):
         user = prefix[:prefix.find('!')]
-        if user == self.nick: 
+        if user == self.nick:
             self.nick = args[0]
-            
+
     def onJoin(self, prefix, args):
         user = prefix[:prefix.find('!')]
-        if user == self.nick: 
+        if user == self.nick:
             self.channels.append(args[0].lower())
-        
+
     def onPart(self, prefix, args):
         user = prefix[:prefix.find('!')]
-        if user == self.nick: 
-            self.channels.remove(args[0].lower())   
+        if user == self.nick:
+            self.channels.remove(args[0].lower())
 
     def callHandler(self, command, prefix='', args=''):
         if command.isdigit():
             if command == '001':
-                self.onWelcome(prefix, args)
+                self.onRegister(prefix, args)
             else:
                 self.defaultNumericHandler(prefix, command, args)
         else:
             try:
                 getattr(self, "on" + command.capitalize())(prefix, args)
-            except AttributeError, inst:
+            except AttributeError:
                 self.defaultHandler(prefix, command, args)
-                
+
     def onPing(self, prefix, args):
         self.pong(args[0])
 
     def onPrivmsg(self, prefix, args):
         args = self.ctcpParser(prefix, args)
 
-    def onWelcome(self, prefix, args):
-        self.userRegistered = True
-        if self.tempOut:
-            self.sendMsg(self.tempOut)
-            del self.tempOut
-        
+    def onRegister(self, prefix, args):
+        pass
+
     def onNotice(self, prefix, args):
         pass
-        
+
     def handle_connect(self):
         """Called when connection established."""
         pass
@@ -107,14 +102,14 @@ class Connection(asyncore.dispatcher):
     def handle_close(self):
         """Called when socket/connection is closed."""
         pass
-        
+
     def handle_read(self):
         """Called when there is data to be read."""
         data = self.recv(512)
         if not data:
             self.close()
             return
-        
+
         self.dataIn += data
 
         # buffering... check if last message is complete
@@ -172,11 +167,6 @@ class Connection(asyncore.dispatcher):
         """Indicates if anything needs to be written."""
         return len(self.dataOut) > 0
 
-    def forceSendMsg(self, message):
-        """Forces a message to be sent."""
-
-        self.dataOut += str(message) + '\r\n'
-
     def sendMsg(self, message):
         """Queues a message for sending to the IRC server.
 
@@ -184,14 +174,11 @@ class Connection(asyncore.dispatcher):
         """
 
         # Messages can only be 510 characters long. (512 with terminator.)
-        if len(str(message)) >= 510:
+        if len(str(message)) > 510:
             # TODO: add custom exception
             raise 'Message is too long. Must be no more than 510 characters.'
 
-        if self.userRegistered:
-            self.dataOut += str(message) + '\r\n'
-        else:
-            self.tempOut += str(message) + '\r\n'
+        self.dataOut += str(message) + '\r\n'
 
 #
 #   CTCP Parsing and Handling Code (can be overriden by bots)
@@ -200,7 +187,7 @@ class Connection(asyncore.dispatcher):
         print 'DEBUG: CTCP:', args
         # CTCP messages can be embedded... so have to find and remove them...
         ctcpMsgs = []
-        while args[1].count('\001') > 0:   
+        while args[1].count('\001') > 0:
             start = args[1].find('\001')
             end = args[1].find('\001', start+1)
             ctcpMsgs.append(args[1][start+1:end])
@@ -208,14 +195,14 @@ class Connection(asyncore.dispatcher):
 
         for msg in ctcpMsgs:
             space = msg.find(' ')
-            
+
             if space != -1:
                 command = msg[:space]
                 params = (msg[space+1:])
             else:
                 command = msg
                 params = ''
-                
+
             self.ctcpCallHandler(prefix, command, params)
 
     def ctcpDefaultHandler(self, prefix, command, args):
@@ -224,7 +211,7 @@ class Connection(asyncore.dispatcher):
     def ctcpCallHandler(self, prefix, command, args):
         try:
             getattr(self, "ctcpOn" + command.capitalize())(prefix, args)
-        except AttributeError, inst:
+        except AttributeError:
             self.ctcpDefaultHandler(prefix, command, args)
 
     def ctcpOnVersion(self, prefix, args):
@@ -261,11 +248,11 @@ class Connection(asyncore.dispatcher):
     def join(self, channel):
         self.sendMsg('JOIN %s' % channel)
 
-    def Nick(self, nick):
+    def newnick(self, nick):
         self.sendMsg('NICK %s' % nick)
 
-    def privateMsg(self, who, message):
-        self.sendMsg('PRIVMSG %s :%s' % (who, message))
+    def privmsg(self, target, message):
+        self.sendMsg('PRIVMSG %s :%s' % (target, message))
 
     def user(self, user, mode, name):
         self.sendMsg('USER %s %u * :%s' % (user, mode, name))
@@ -273,8 +260,8 @@ class Connection(asyncore.dispatcher):
     def quit(self, message):
         self.sendMsg('QUIT :%s' % message)
 
-    def leave(self, channel, message):
+    def part(self, channel, message):
         self.sendMsg('PART %s :%s' % (channel, message))
 
-    def notice(self, who, message):
-        self.sendMsg('NOTICE %s :%s' % (who, message))
+    def notice(self, target, message):
+        self.sendMsg('NOTICE %s :%s' % (target, message))
