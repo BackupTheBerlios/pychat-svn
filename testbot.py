@@ -29,13 +29,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import ConfigParser
-from irc import protocol
+import irc
 
-class Bot(protocol.Connection):
+class Bot(irc.protocol):
 
     def __init__(self):
         self.authUsers = ['xor', 'iddqd'] # only respond to commands from
-        self.options = {'VERSION': '0.01a', 'REVISION': 'Revision 21'}
+        self.options = {'VERSION': '0.02a', 'REVISION': 'Revision 32'}
         config = ConfigParser.ConfigParser()
         config.read('altleech.cfg')
         self.channels = config.get('altleech', 'channels').split()
@@ -45,7 +45,7 @@ class Bot(protocol.Connection):
         mode = config.getint('altleech', 'mode')
         self.rejoin = config.getboolean('altleech', 'rejoin_on_kick')
         self.reconnect = config.getboolean('altleech', 'reconnect_on_drop')
-        protocol.Connection.__init__(self, server, nick, name, mode)
+        irc.protocol.__init__(self, server, nick, name, mode)
         self.considerReconnect = True
 
     def handle_close(self):
@@ -105,7 +105,7 @@ class Bot(protocol.Connection):
             self.channels.append(channel.lower())
 
     def onPrivmsg(self, prefix, args):
-        protocol.Connection.onPrivmsg(self, prefix, args)
+        irc.protocol.onPrivmsg(self, prefix, args)
         # is there a message left? After CTCP processing...
         if len(args[1]) == 0:
             return
@@ -201,7 +201,7 @@ class Bot(protocol.Connection):
 
 def main():
     a = Bot()
-    protocol.asyncore.loop()
+    irc.asyncore.loop()
 
 if __name__ == '__main__':
     main()

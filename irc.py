@@ -31,7 +31,7 @@ import socket
 import asyncore
 from time import strftime, localtime
 
-class Connection(asyncore.dispatcher):
+class protocol(asyncore.dispatcher):
 
     def __init__(self, server, nick, name, mode, port=6667):
         asyncore.dispatcher.__init__(self)
