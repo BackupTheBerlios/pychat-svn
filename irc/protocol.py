@@ -46,7 +46,8 @@ class Connection(asyncore.dispatcher):
         self.nick = alias
         self.name = name
         self.mode = mode
-        self.serverOptions = {'SERVER': host,'SERVERVERSION': 'UNKNOWN', 'SERVERCREATED': 'UNKNOWN'}
+        self.serverOptions = {'SERVER': host,'SERVERVERSION': 'UNKNOWN', 'SERVERCREATED': 'UNKNOWN', 'PORT': port}
+        self.channels = []
 
         # Must send NICK and USER messages to establish connection and
         # register the user.
@@ -67,6 +68,7 @@ class Connection(asyncore.dispatcher):
                             '003': self.createdHandler,     # compiled date and time
                             '004': self.infoHandler,        # user and channel modes
                             '005': self.supportHandler,     # options present on server
+                            '250': self.dummyHandler,       # highest connection count
                             '251': self.dummyHandler,       # no users on server
                             '252': self.dummyHandler,       # no operators online
                             '253': self.dummyHandler,       # unknown connections
@@ -82,8 +84,16 @@ class Connection(asyncore.dispatcher):
                             '333': self.ignoreHandler,      # unknown: channel founder I think not in rfc                   
                             '353': self.ignoreHandler,      # names list
                             '366': self.ignoreHandler,      # end of names list
+                            '403': self.dummyHandler,       # no such channel
+                            '461': self.ignoreHandler,      # not enough parameters
+                            '477': self.ignoreHandler,      # channel doesnt support modes (need registered nick???)
                             'MODE': self.dummyHandler,      # mode change (user or channel)
-                            'JOIN': self.ignoreHandler,     # confirm join to channel
+                            'JOIN': self.joinHandler,       # confirm join to channel
+                            'QUIT': self.ignoreHandler,     # quit messages from other users
+                            'KICK': self.ignoreHandler,     # kick message
+                            'NICK': self.nickHandler,       # nick changes
+                            'PART': self.partHandler,       # confirm leaving a channel
+                            'ERROR': self.dummyHandler,     # error message handler, should be overriden
                             'PRIVMSG': self.dummyHandler,   # private message recv (to channel or client)
                             'NOTICE': self.noticeHandler}   # server notices
 
@@ -98,6 +108,25 @@ class Connection(asyncore.dispatcher):
     def defaultHandler(self, prefix, command, args):
         raise 'Default handler called: ', command
     
+    def nickHandler(self, prefix, args):
+        user = prefix[:prefix.find('!')]
+        if user == self.nick: 
+            self.nick = args[0]
+            
+    def joinHandler(self, prefix, args):
+        user = prefix[:prefix.find('!')]
+        if user == self.nick: 
+            self.channels.append(args[0].lower())
+        
+        print 'JOIN: ',' '.join(args)
+
+    def partHandler(self, prefix, args):
+        user = prefix[:prefix.find('!')]
+        if user == self.nick: 
+            self.channels.remove(args[0].lower())
+
+        print 'PART: ',' '.join(args)
+
     def ignoreHandler(self, prefix, args):
         pass
 

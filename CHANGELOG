@@ -1,4 +1,14 @@
 13/06/2004 Neil Rutherford <xor@mail.berlios.de>
+    * protocol.py: added/updated standard message handlers
+                   added channel list, and JOIN and PART handlers
+                   which update the channel list
+                   added server options list
+    * testbot.py:  added JOIN, KICK and ERROR handlers
+                   added PRIVMSG handler, which allows the bot to be remote controlled
+                   added bot options list, like version, etc
+    * quit.py, leave.py, priv.py:   added to project: ie QUIT, PART and PRIVMSG messages
+
+13/06/2004 Neil Rutherford <xor@mail.berlios.de>
 	* protocol.py: added standard message handlers
 
 10/06/2004 Neil Rutherford <xor@mail.berlios.de>
