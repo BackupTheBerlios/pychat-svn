@@ -218,7 +218,7 @@ class Connection(asyncore.dispatcher):
                 
             self.ctcpCallHandler(prefix, command, params)
 
-    def ctcpDefaultHandler(self, prefix, args):
+    def ctcpDefaultHandler(self, prefix, command, args):
         pass
 
     def ctcpCallHandler(self, prefix, command, args):
@@ -229,6 +229,19 @@ class Connection(asyncore.dispatcher):
 
     def ctcpOnVersion(self, prefix, args):
         pass
+
+    def ctcpOnDcc(self, prefix, args):
+        print args
+        user = prefix[:prefix.find('!')]
+        params = args.split()
+        if params[0] == 'CHAT':
+            # just reject... up to client to override
+            self.notice(user,'\001ERRMSG DCC CHAT Rejected\001')
+        elif params[0] == 'SEND':
+            # just reject... up to client to override
+            self.notice(user,'\001ERRMSG DCC SEND %s Rejected\001' % params[1])
+        else:
+            self.notice(user,'\001ERRMSG DCC %s Not Implemented\001' % params[0])
 
     def ctcpOnPing(self, prefix, args):
         user = prefix[:prefix.find('!')]
