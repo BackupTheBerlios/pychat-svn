@@ -65,105 +65,54 @@ class Connection(asyncore.dispatcher):
         self.forceSendMsg('NICK %s' % self.myNick)
         self.forceSendMsg('USER %s %u * :%s' % (self.myNick, self.mode, self.name))
 
-        # By default, we respond to PING messages (by PONGing) 
-        # 001 messages (by treating the user as registered)
-        # 002 messages (by storing server name and version)
-        # 003 messages (by storing compiled time of server)
-        # 004 messages (by storing user and channel modes)
-        # 005 messages (by storing all options supported by server)
-        # NOTICE messages (by printing out the Notices)
-        
-        self.msgHandlers = {'PING': self.pingHandler,       # PING messages, respond with PONG
-                            '001': self.welcomeHandler,     # welcome to irc network
-                            '002': self.dummyHandler,       # server name and version
-                            '003': self.dummyHandler,       # compiled date and time
-                            '004': self.dummyHandler,       # user and channel modes
-                            '005': self.dummyHandler,       # options present on server
-                            '250': self.dummyHandler,       # highest connection count
-                            '251': self.dummyHandler,       # no users on server
-                            '252': self.dummyHandler,       # no operators online
-                            '253': self.dummyHandler,       # unknown connections
-                            '254': self.dummyHandler,       # no of channels formed
-                            '255': self.dummyHandler,       # no of clients and servers
-                            '265': self.dummyHandler,       # current local users
-                            '266': self.dummyHandler,       # current global users
-                            '375': self.dummyHandler,       # motd start
-                            '372': self.dummyHandler,       # motd text
-                            '376': self.ignoreHandler,      # motd end
-                            '422': self.ignoreHandler,      # no motd
-                            '332': self.ignoreHandler,      # topic
-                            '333': self.ignoreHandler,      # unknown: channel founder I think not in rfc                   
-                            '353': self.ignoreHandler,      # names list
-                            '366': self.ignoreHandler,      # end of names list
-                            '403': self.dummyHandler,       # no such channel
-                            '404': self.ignoreHandler,      # cannot send to channel
-                            '433': self.ignoreHandler,      # nick collision (TODO: need error checking)
-                            '461': self.ignoreHandler,      # not enough parameters
-                            '477': self.ignoreHandler,      # channel doesnt support modes (need registered nick???)
-                            'MODE': self.dummyHandler,      # mode change (user or channel)
-                            'JOIN': self.joinHandler,       # confirm join to channel
-                            'QUIT': self.ignoreHandler,     # quit messages from other users
-                            'KICK': self.ignoreHandler,     # kick message
-                            'NICK': self.nickHandler,       # nick changes
-                            'PART': self.partHandler,       # confirm leaving a channel
-                            'ERROR': self.dummyHandler,     # error message handler, should be overriden
-                            'PRIVMSG': self.dummyHandler,   # private message recv (to channel or client)
-                            'TOPIC': self.ignoreHandler,    # topic message (when only person in topic)
-                            'NOTICE': self.noticeHandler}   # server notices
-
-    def registerHandler(self, command, handler):
-        self.msgHandlers[command] = handler
-
-    def unregisterHandler(self, command):
-        if not self.msgHandlers.has_key(command):
-            raise 'Not registered'
-        del self.msgHandlers[command]
-
-    def defaultHandler(self, prefix, command, args):
-        raise 'Default handler called: ', command
+    def defaultNumericHandler(self, prefix, command, args):
+        # ignoring message, can be overriden by bot...
+        print 'DEBUG: ignoring reply:', command
     
-    def nickHandler(self, prefix, args):
+    def defaultHandler(self, prefix, command, args):
+        print 'DEBUG: ignoring:', command
+    
+    def onNick(self, prefix, args):
         user = prefix[:prefix.find('!')]
         if user == self.myNick: 
             self.myNick = args[0]
             
-    def joinHandler(self, prefix, args):
+    def onJoin(self, prefix, args):
         user = prefix[:prefix.find('!')]
         if user == self.myNick: 
             self.channels.append(args[0].lower())
         
         print 'JOIN: ',' '.join(args)
 
-    def partHandler(self, prefix, args):      # FIXME: doesnt always seem
-        user = prefix[:prefix.find('!')]      # to remove channel when leaving
+    def onPart(self, prefix, args):
+        user = prefix[:prefix.find('!')]
         if user == self.myNick: 
-            self.channels.remove(args[0].lower())
-            print 'LEFT CHANNEL: ',' '.join(args)    
+            self.channels.remove(args[0].lower())   
 
         print 'PART: ',' '.join(args)
 
-    def ignoreHandler(self, prefix, args):
-        pass
-
     def callHandler(self, command, prefix='', args=''):
-        if self.msgHandlers.has_key(command):
-            self.msgHandlers[command](prefix, args)
+        if command.isdigit():
+            if command == '001':
+                self.onWelcome(prefix, args)
+            else:
+                self.defaultNumericHandler(prefix, command, args)
         else:
-            self.defaultHandler(prefix, command, args)
-
-    def pingHandler(self, prefix, args):
+            try:
+                getattr(self, "on" + command.capitalize())(prefix, args)
+            except AttributeError, inst:
+                self.defaultHandler(prefix, command, args)
+                
+    def onPing(self, prefix, args):
         self.pong(args[0])
 
-    def welcomeHandler(self, prefix, args):
+    def onWelcome(self, prefix, args):
         self.userRegistered = True
         if self.tempOut:
             self.sendMsg(self.tempOut)
             del self.tempOut
-
-    def dummyHandler(self, prefix, args):
-        print ' '.join(args)
         
-    def noticeHandler(self, prefix, args):
+    def onNotice(self, prefix, args):
         print 'SERVER NOTICE: ' + ' '.join(args)
 
     def handle_connect(self):

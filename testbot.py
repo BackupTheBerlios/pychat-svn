@@ -29,35 +29,33 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 from irc import protocol
-from irc.messages import join,quit,priv,nick,leave
 
 class Bot(protocol.Connection):
 
     def __init__(self, host, nick='pyuser', name='test', mode=0):
         protocol.Connection.__init__(self, host, nick, name, mode)
-        self.registerHandler('PRIVMSG', self.privmsgHandler)  # overrides the one in protocol.py
-        self.registerHandler('ERROR', self.errorHandler)      # overrides the one in protocol.py
-        self.registerHandler('KICK', self.kickHandler)        # overrides the one in protocol.py
-        self.registerHandler('JOIN', self.joinHandler)        # overrides the one in protocol.py
-        self.registerHandler('433', self.collisionHandler)    # overrides the one in protocol.py
         self.join('#bytehouse')
         self.authUsers = ['xor', 'iddqd']       # only respond to commands from
         self.options = {'VERSION': '0.01a', 'REVISION':'Revision 21'}
 
-    def collisionHandler(self, prefix, args):                  # TODO: actually handle this somehow, for the moment just output error...
-        print 'DEBUG: Nick Collision'
+    def defaultNumericHandler(self, prefix, command, args):   # overriden from protocol
+        if command == '433':
+            print 'DEBUG: Nick Collision'
+        else:
+            print 'DEBUG: Unhandled num reply:', command
 
-
-    def errorHandler(self, prefix, args):
+    def onError(self, prefix, args):
         print ' '.join(args)                                  # currently only prints out the args, needs to handle errors
 
-    def kickHandler(self, prefix, args):
+    def onKick(self, prefix, args):
+        protocol.Connection.onPart(self, prefix, args)
         print 'KICK: ', ' '.join(args)
         if args[1] == self.myNick:                              # if kicked rejoin channel
+            self.channels.remove(args[0].lower())
             self.join(args[0])
 
-    def joinHandler(self, prefix, args):                      # XXX: super() doesnt work, its for types not classes apparently
-        protocol.Connection.joinHandler(self,prefix,args)     # call the protocol joinHandler, adds channel to channels list, ugly way of doing it :(
+    def onJoin(self, prefix, args):                      # XXX: super() doesnt work, its for types not classes apparently
+        protocol.Connection.onJoin(self, prefix, args)     # call the protocol joinHandler, adds channel to channels list, ugly way of doing it :(
         user = prefix[:prefix.find('!')]
         if user != self.myNick:                                 # if not me, then welcome user
             if user.lower() in self.authUsers:
@@ -65,7 +63,7 @@ class Bot(protocol.Connection):
             else:
                 self.privateMsg(args[0],'Welcome to %s, %s' % (args[0], user))
             
-    def privmsgHandler(self, prefix, args):
+    def onPrivmsg(self, prefix, args):
         user = prefix[:prefix.find('!')]
         if user.lower() in self.authUsers:                          # is the message from an authorised user?
             if args[0] in self.channels:    
