@@ -73,14 +73,15 @@ class protocol:
         params = args.split()
         if params[0] == 'CHAT':
             # just reject... up to client to override
-            self.notice(user,'\001ERRMSG DCC CHAT Rejected\001')
+            self.notice(user,'\001ERRMSG DCC REJECT CHAT\001')
             # uncomment to call dcc.protocol.dccChat()
 #           self.dccChat(user, params[2],params[3]) 
         elif params[0] == 'SEND':
             # just reject... up to client to override
-            self.notice(user,'\001ERRMSG DCC SEND %s Rejected\001' % params[1])
-            # uncomment to call dcc.protocol.dccReceive()            
-#           self.dccReceive(user, params[2], params[3], params[4], params[5]) 
+ #          self.notice(user,'\001ERRMSG DCC REJECT GET %s\001' % params[1])
+            # uncomment to call dcc.protocol.dccReceive()           
+#             def dccReceive(self, user, host, filename, port, size):
+            self.dccReceive(user, int(params[2]), params[1], int(params[3]), int(params[4])) 
         else:
             self.notice(user,'\001ERRMSG DCC %s Not Implemented\001' % params[0])
 

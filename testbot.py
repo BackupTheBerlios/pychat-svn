@@ -142,7 +142,6 @@ class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
                 elif message.startswith('!' + self.nick + ':'):
                     message = message[len(self.nick)+2:].strip()
                     user = args[0]
-                    print user
                 else:
                     return
 

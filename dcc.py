@@ -28,10 +28,41 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import socket
+import struct
 
 class protocol:
     def dccChat(self, user, host, port):
         raise "Not Done Yet... Try again later..."
     
     def dccReceive(self, user, host, filename, port, size):
-        raise "Not Done Yet... Try again later..."
+#       raise "Not Done Yet... Try again later..."
+        
+        #XXX: Really *buggy* code, basic idea from internet source...
+        # http://www.zob.ne.jp/~hide-t/comp/mysoftware/dccrecv.py
+        #
+        #TODO: should rewrite the code to use asyncore or threads
+        #
+        
+        IP = '%d.%d.%d.%d' % struct.unpack('>BBBB', struct.pack('>L', host))
+        
+        print 'DEBUG: DCC RECV %s From %s' % (filename,IP)
+        
+        dccCon = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        dccCon.connect((IP, port))
+        rFile = open(filename, 'wb')
+
+        received = 0
+        remain = size
+        while remain:
+            data = dccCon.recv(remain)
+            if not data: break
+            rFile.write(data)
+            received = received + len(data)
+            dccCon.send(struct.pack('!i', received))
+            remain = size - received
+            print 'DEBUG: DCC RECV: (%i recv, %i left)' % (received, remain)
+        
+        dccCon.close()
+        rFile.close()
+
+        print 'DEBUG: DCC RECV Finished'
