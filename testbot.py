@@ -44,7 +44,7 @@ class Bot(protocol.Connection):
         self.authUsers = ['xor','iddqd','dickshinnery']       # only respond to commands from
         self.options = {'VERSION': '0.01a', 'REVISION':'Revision 16'}
 
-    def collisonHandler(self, prefix, args):                  # TODO: actually handle this somehow, for the moment just output error...
+    def collisionHandler(self, prefix, args):                  # TODO: actually handle this somehow, for the moment just output error...
         print 'DEBUG: Nick Collision'
 
 
