@@ -77,7 +77,7 @@ class Connection(asyncore.dispatcher):
             self.defaultHandler(prefix, command, args)
 
     def pingHandler(self, prefix, args):
-        self.sendMsg(pong.PongMsg(args[0]))
+        self.forceSendMsg(pong.PongMsg(args[0]))
 
     def welcomeHandler(self, prefix, args):
         self.userRegistered = True
