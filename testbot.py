@@ -81,7 +81,7 @@ class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
             print '***', ' '.join(args[1:])
 
     def ctcpOnVersion(self, prefix, args): # TODO: hardcoded atm... must change later
-        user = prefix[:prefix.find('!')]
+        user = self.getUser(prefix)
         self.notice(user, '\001VERSION %s %s %s\001' % ('mIRC', 'v6.03', 'Khaled Mardam-Bey'))
 
     def onError(self, prefix, args):
@@ -101,14 +101,14 @@ class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
                 self.join(channel)
 
     def onPart(self, prefix, args):
-        user = prefix[:prefix.find('!')]
+        user = self.getUser(prefix)
         channel = args[0]
         if user == self.nick:
             self.channels.remove(channel.lower())
         print 'PART:', ' '.join(args)
 
     def onJoin(self, prefix, args):
-        user = prefix[:prefix.find('!')]
+        user = self.getUser(prefix)
         channel = args[0]
         if user != self.nick:
             print 'JOIN:', ' '.join(args)
@@ -127,7 +127,7 @@ class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
             return
 
         # more readable...
-        user = prefix[:prefix.find('!')]
+        user = self.getUser(prefix)
         channel = args[0]
         message = args[1]
 
@@ -231,6 +231,23 @@ class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
                 self.close()
             else:
                 self.privmsg(user, 'Error: Unrecognized command: ' + command) 
+
+    def ctcpOnDcc(self, prefix, args):  # overriden from ctcp.py
+        print args
+        user = self.getUser(prefix)
+        params = args.split()
+        if params[0] == 'CHAT':
+            # just reject... not supporting for the moment
+            self.notice(user,'\001DCC REJECT CHAT\001')
+            # uncomment to call dcc.protocol.dccChat()
+#           self.dccChat(user, params[2],params[3]) 
+        elif params[0] == 'SEND':
+            if user in self.authUsers:
+                self.dccReceive(user, int(params[2]), params[1], int(params[3]), int(params[4])) 
+            else:            # reject users not in authUsers list
+                self.notice(user,'\001DCC REJECT GET %s\001' % params[1])
+        else:
+            self.notice(user,'\001ERRMSG DCC %s Not Implemented\001' % params[0])
 
 def main():
     a = Bot()

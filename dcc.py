@@ -36,7 +36,6 @@ class protocol:
         raise "Not Done Yet... Try again later..."
     
     def dccReceive(self, user, host, filename, port, size):
-#       raise "Not Done Yet... Try again later..."
         thread.start_new_thread(self.threadDoRecv, (user, host, filename, port, size))
 
     def threadDoRecv(self, user, host, filename, port, size):
@@ -54,11 +53,16 @@ class protocol:
         remain = size
         while remain:
             data = dccCon.recv(remain)
-            if not data: break
+            
+            if not data: 
+                break
+            
             rFile.write(data)
+            
             received = received + len(data)
             dccCon.send(struct.pack('!i', received))
             remain = size - received
+            
             print 'DEBUG: DCC RECV: (%i recv, %i left)' % (received, remain)
         
         dccCon.close()

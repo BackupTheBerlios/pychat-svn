@@ -173,6 +173,8 @@ class protocol(asyncore.dispatcher):
 
         self.dataOut += str(message) + '\r\n'
 
+    def getUser(self, prefix):
+        return prefix[:prefix.find('!')]
 #
 # ----- below this line, adding messages (originally submodules) -------
 #

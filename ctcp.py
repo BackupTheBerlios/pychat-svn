@@ -34,14 +34,13 @@ class protocol:
         print 'DEBUG: CTCP:', args
         # CTCP messages can be embedded... so have to find and remove them...
         ctcpMsgs = []
-        # XXX: i think I should leave this the way it is... 
-        # or I could neaten it up with a seperate variable, 
-        # and then return that... what do you think?
-        while args[1].count('\001') > 0:
-            start = args[1].find('\001')
-            end = args[1].find('\001', start+1)
-            ctcpMsgs.append(args[1][start+1:end])
-            args[1] = args[1][:start] + args[1][end+1:]
+        # XXX: neatened it up
+        message = args[1]
+        while message.count('\001') > 0:
+            start = message.find('\001')
+            end = message.find('\001', start+1)
+            ctcpMsgs.append(message[start+1:end])
+            message = message[:start] + message[end+1:]
 
         for msg in ctcpMsgs:
             space = msg.find(' ')
@@ -54,6 +53,8 @@ class protocol:
                 params = ''
 
             self.ctcpCallHandler(prefix, command, params)
+
+        args[1] = message
 
     def ctcpDefaultHandler(self, prefix, command, args):
         pass
@@ -73,15 +74,12 @@ class protocol:
         params = args.split()
         if params[0] == 'CHAT':
             # just reject... up to client to override
-            self.notice(user,'\001ERRMSG DCC REJECT CHAT\001')
+            self.notice(user,'\001DCC REJECT CHAT\001')
             # uncomment to call dcc.protocol.dccChat()
 #           self.dccChat(user, params[2],params[3]) 
         elif params[0] == 'SEND':
             # just reject... up to client to override
- #          self.notice(user,'\001ERRMSG DCC REJECT GET %s\001' % params[1])
-            # uncomment to call dcc.protocol.dccReceive()           
-#             def dccReceive(self, user, host, filename, port, size):
-            self.dccReceive(user, int(params[2]), params[1], int(params[3]), int(params[4])) 
+            self.notice(user,'\001DCC REJECT GET %s\001' % params[1])
         else:
             self.notice(user,'\001ERRMSG DCC %s Not Implemented\001' % params[0])
 
