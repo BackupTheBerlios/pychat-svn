@@ -30,34 +30,49 @@
 
 import ConfigParser
 import irc
+import ctcp
+import dcc
 
-class Bot(irc.protocol):
+class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
 
     def __init__(self):
-        self.authUsers = ['xor', 'iddqd'] # only respond to commands from
-        self.options = {'VERSION': '0.02a', 'REVISION': 'Revision 32'}
-        config = ConfigParser.ConfigParser()
-        config.read('altleech.cfg')
-        self.channels = config.get('altleech', 'channels').split()
-        server = config.get('altleech', 'server')
-        nick = config.get('altleech', 'nick')
-        name = config.get('altleech', 'name')
-        mode = config.getint('altleech', 'mode')
-        self.rejoin = config.getboolean('altleech', 'rejoin_on_kick')
-        self.reconnect = config.getboolean('altleech', 'reconnect_on_drop')
+        self.options = {}
+        self.channels = []
+        
+        self.config = ConfigParser.ConfigParser()
+        self.loadOptions()
+        self.config.read('altleech.cfg')
+        server = self.config.get('altleech', 'server')
+        nick = self.config.get('altleech', 'nick')
+        name = self.config.get('altleech', 'name')
+        mode = self.config.getint('altleech', 'mode')
         irc.protocol.__init__(self, server, nick, name, mode)
         self.considerReconnect = True
 
+    def loadOptions(self):
+        self.config.read('altleech.cfg')
+        self.chanstojoin = self.config.get('altleech', 'channels').split()
+        self.authUsers = self.config.get('general', 'remote_users').split() # only respond to commands from
+        self.rejoin = self.config.getboolean('altleech', 'rejoin_on_kick')
+        self.reconnect = self.config.getboolean('altleech', 'reconnect_on_drop')
+        self.welcome = self.config.getboolean('general', 'welcome_user')
+        self.options['VERSION'] = self.config.get('general', 'version')
+        self.options['REVISION'] = self.config.get('general', 'revision')
+        self.registeredNick = self.config.getboolean('general', 'registered_nick')
+        self.nickPassword = self.config.get('general', 'nick_password')
+
     def handle_close(self):
         if self.considerReconnect and self.reconnect:
-            protocol.Connection.__init__(self, self.server, self.nick, self.name, self.mode)
+            irc.protocol.__init__(self, self.server, self.nick, self.name, self.mode)
 
     def quit(self, message):
-        protocol.Connection.quit(self, message)
+        irc.protocol.quit(self, message)
         self.considerReconnect = False
 
     def onRegister(self, prefix, args):
-        for chan in self.channels:
+        if self.registeredNick:
+            self.privmsg('nickserv','identify ' + self.nickPassword)
+        for chan in self.chanstojoin:
             self.join(chan)
 
     def defaultNumericHandler(self, prefix, command, args):
@@ -97,21 +112,25 @@ class Bot(irc.protocol):
         channel = args[0]
         if user != self.nick:
             print 'JOIN:', ' '.join(args)
-            if user.lower() in self.authUsers:
-                self.privmsg(channel, 'Welcome to %s, the all powerful %s, thank you for blessing us with your presence' % (args[0], user))
-            else:
-                self.privmsg(channel, 'Welcome to %s, %s' % (channel, user))
+            if self.welcome:
+                if user.lower() in self.authUsers:
+                    self.privmsg(channel, 'Welcome to %s, the all powerful %s, thank you for blessing us with your presence' % (args[0], user))
+                else:
+                    self.privmsg(channel, 'Welcome to %s, %s' % (channel, user))
         else:
             self.channels.append(channel.lower())
 
     def onPrivmsg(self, prefix, args):
-        irc.protocol.onPrivmsg(self, prefix, args)
+        self.ctcpParse(prefix, args)
         # is there a message left? After CTCP processing...
         if len(args[1]) == 0:
             return
+
         # more readable...
-        user, channel, message = prefix[:prefix.find('!')], args[0], args[1]
-        
+        user = prefix[:prefix.find('!')]
+        channel = args[0]
+        message = args[1]
+
         # is the message from an authorised user?
         if user.lower() in self.authUsers:
             if channel in self.channels:
@@ -176,19 +195,23 @@ class Bot(irc.protocol):
             elif command == 'RENAME':
                 self.newnick(params)
             elif command == 'COMMANDS':
+                user = prefix[:prefix.find('!')]        
                 self.privmsg(user, '<begin commands>')
                 self.privmsg(user, 'COMMANDS AVAILABLE:')
                 self.privmsg(user, 'JOIN - join channel(sslimmed down event handlers): JOIN <channel list (seperated by a comma)>')
                 self.privmsg(user, 'LEAVE - leave channel(s): LEAVE <channel list (seperated by a comma)> <message>')
                 self.privmsg(user, 'QUIT - quit server: QUIT <quit msg>')
                 self.privmsg(user, 'STATS - displays stats: STATS')
+                self.privmsg(user, 'HOP - leave then rejoin channel: HOP <channel>')
+                self.privmsg(user, 'RELOAD - reloads config file: RELOAD')
+                self.privmsg(user, 'DROP - closes connection: DROP')
                 self.privmsg(user, 'SAY - speak through the bot: SAY <channel/user> <what to say>')
                 self.privmsg(user, 'RENAME - changes the bots name: RENAME <new name>')
                 self.privmsg(user, '<end commands>')
             elif command == 'STATS':
                 self.privmsg(user, '<begin stats>')
                 self.privmsg(user, 'pychat Project: Python IRC Client')
-                self.privmsg(user, 'http://pychat.berlios.de/')
+                self.privmsg(user, 'http://www.pychat.za.org')
                 self.privmsg(user, 'NICK: ' + self.nick)
                 self.privmsg(user, 'NAME: ' + self.name)
                 self.privmsg(user, 'VERSION: ' + self.options['VERSION'])
@@ -196,6 +219,13 @@ class Bot(irc.protocol):
                 self.privmsg(user, 'CHANNELS: ' + ','.join(self.channels))
                 self.privmsg(user, 'This is a test bot written to test the functionality of the pychat protocol handler')
                 self.privmsg(user, '<end stats>')
+            elif command == 'RELOAD':
+                self.loadOptions()
+            elif command == 'HOP':
+                self.part(params, 'Hopping...')
+                self.join(params)
+            elif command == 'DROP':
+                self.close()
             else:
                 self.privmsg(user, 'Error: Unrecognized command: ' + command) 
 

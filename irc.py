@@ -29,7 +29,6 @@
 
 import socket
 import asyncore
-from time import strftime, localtime
 
 class protocol(asyncore.dispatcher):
 
@@ -81,7 +80,7 @@ class protocol(asyncore.dispatcher):
         self.pong(args[0])
 
     def onPrivmsg(self, prefix, args):
-        args = self.ctcpParser(prefix, args)
+        pass
 
     def onRegister(self, prefix, args):
         pass
@@ -173,67 +172,6 @@ class protocol(asyncore.dispatcher):
             raise 'Message is too long. Must be no more than 510 characters.'
 
         self.dataOut += str(message) + '\r\n'
-
-#
-#   CTCP Parsing and Handling Code (can be overriden by bots)
-#
-    def ctcpParser(self, prefix, args):
-        print 'DEBUG: CTCP:', args
-        # CTCP messages can be embedded... so have to find and remove them...
-        ctcpMsgs = []
-        # XXX: i think I should leave this the way it is... 
-        # or I could neaten it up with a seperate variable, 
-        # and then return that... what do you think?
-        while args[1].count('\001') > 0:
-            start = args[1].find('\001')
-            end = args[1].find('\001', start+1)
-            ctcpMsgs.append(args[1][start+1:end])
-            args[1] = args[1][:start] + args[1][end+1:]
-
-        for msg in ctcpMsgs:
-            space = msg.find(' ')
-
-            if space != -1:
-                command = msg[:space]
-                params = (msg[space+1:])
-            else:
-                command = msg
-                params = ''
-
-            self.ctcpCallHandler(prefix, command, params)
-
-    def ctcpDefaultHandler(self, prefix, command, args):
-        pass
-
-    def ctcpCallHandler(self, prefix, command, args):
-        try:
-            getattr(self, "ctcpOn" + command.capitalize())(prefix, args)
-        except AttributeError:
-            self.ctcpDefaultHandler(prefix, command, args)
-
-    def ctcpOnVersion(self, prefix, args):
-        pass
-
-    def ctcpOnDcc(self, prefix, args):
-        print args
-        user = prefix[:prefix.find('!')]
-        params = args.split()
-        if params[0] == 'CHAT':
-            # just reject... up to client to override
-            self.notice(user,'\001ERRMSG DCC CHAT Rejected\001')
-        elif params[0] == 'SEND':
-            # just reject... up to client to override
-            self.notice(user,'\001ERRMSG DCC SEND %s Rejected\001' % params[1])
-        else:
-            self.notice(user,'\001ERRMSG DCC %s Not Implemented\001' % params[0])
-
-    def ctcpOnPing(self, prefix, args):
-        user = prefix[:prefix.find('!')]
-        self.notice(user,'\001PING %s\001' % args)
-
-    def ctcpOnTime(self, prefix, args):
-        user = prefix[:prefix.find('!')]
-        self.notice(user,'\001TIME %s\001' % strftime("%a, %d %b %Y %H:%M:%S %Z", localtime()))
 
 #
 # ----- below this line, adding messages (originally submodules) -------
