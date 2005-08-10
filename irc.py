@@ -64,12 +64,23 @@ class protocol(asyncore.dispatcher):
 
     def onPart(self, prefix, args):
         pass
+    
+    def onBanned(self, prefix, args):
+        pass
+
+    def onNeedRegisteredNick(self, prefix, args):
+        pass
 
     def callHandler(self, command, prefix='', args=''):
         if command.isdigit():
             if command == '001':
                 self.onRegister(prefix, args)
-            self.defaultNumericHandler(prefix, command, args)
+            elif command == '474':
+                self.onBanned(prefix, args)
+            elif command == '477':
+                self.onNeedRegisteredNick(prefix, args)
+            else:
+                self.defaultNumericHandler(prefix, command, args)
         else:
             try:
                 getattr(self, "on" + command.capitalize())(prefix, args)

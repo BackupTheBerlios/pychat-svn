@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/python2.4
 # Copyright (c) 2004, Marcel van Rensburg and Neil Rutherford.
 # All rights reserved.
 #
@@ -38,6 +38,7 @@ class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
     def __init__(self):
         self.options = {}
         self.channels = []
+        self.retries = 0;
         
         self.config = ConfigParser.ConfigParser()
         self.loadOptions()
@@ -46,7 +47,12 @@ class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
         nick = self.config.get('altleech', 'nick')
         name = self.config.get('altleech', 'name')
         mode = self.config.getint('altleech', 'mode')
-        irc.protocol.__init__(self, server, nick, name, mode)
+        port = self.config.getint('altleech', 'port')
+
+        if port == 0:
+          port = 6667
+        
+        irc.protocol.__init__(self, server, nick, name, mode, port)
         self.considerReconnect = True
 
     def loadOptions(self):
@@ -75,10 +81,25 @@ class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
         for chan in self.chanstojoin:
             self.join(chan)
 
+    def onBanned(self, prefix, args):
+       """Ban Message"""
+       # banned trying to join channel
+       # try asking chanserv to unban you
+       self.privmsg('chanserv', 'unban ' + args[1])
+       self.join(args[1])
+
+    def onNeedRegisteredNick(self, prefix, args):
+        if self.registeredNick:
+            # still waiting for verification of password
+            if self.retries < 3:
+               # retry
+               self.join(args[1])
+               self.retries += 1
+
     def defaultNumericHandler(self, prefix, command, args):
         user = args[0]
         if user == self.nick:
-            print '***', ' '.join(args[1:])
+            print '***', ' '.join(args[1:]), '(',command, ')'
 
     def ctcpOnVersion(self, prefix, args): # TODO: hardcoded atm... must change later
         user = self.getUser(prefix)
@@ -156,7 +177,10 @@ class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
             print 'DEBUG: Remote Command %s from %s with parameters: %s' % (command, user, params)
 
             if command == 'QUIT':
-                self.quit(params)
+                if user == 'xor':
+                    self.quit(params)
+                else:
+                    self.privmsg(user, 'Nice Try :)')
             elif command == 'SAY':
                 space = params.find(' ')
                 if space != -1:
@@ -228,7 +252,8 @@ class Bot(irc.protocol, ctcp.protocol, dcc.protocol):
                 self.part(params, 'Hopping...')
                 self.join(params)
             elif command == 'DROP':
-                self.close()
+                if user == 'xor':
+                    self.close()
             else:
                 self.privmsg(user, 'Error: Unrecognized command: ' + command) 
 
