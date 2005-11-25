@@ -1,0 +1,23 @@
+pychat
+Python IRC Client
+=================
+
+Please note: This is still in alpha stages.
+
+Requires:
+
+- Python 2.4 or higher
+- Twisted Framework (latest)
+
+Requires for test modules:
+
+- pySVN
+- SOAPpy
+
+Status:
+
+Currently is just a test IRC bot to test with, which has modules added to
+it for fun. Bot has a Google search and SVN module at the moment. The bot needs
+a configuration file to work, an empty file has been provided.
+
+
