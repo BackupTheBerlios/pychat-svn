@@ -734,7 +734,7 @@ class TehBotFactory(protocol.ClientFactory):
 if __name__ == '__main__':
     
     # Create options object
-    opt = BotOptions('ircbot.cfg')
+    opt = BotOptions('bot.cfg')
 
     # Create SVN Interface object
     svn = SVNInterface(opt.repo)
