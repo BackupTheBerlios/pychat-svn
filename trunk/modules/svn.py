@@ -43,16 +43,25 @@ class SVNInterface: #XXX: for Testing pysvn, add new features as desired
             self.client = Client()
 
         def lastRev(self):
-            return self.lastLog()[0]['revision']
-
+            ret = self.lastLog()
+            if ret == 'Error connecting to SVN repo':
+                return -1
+            else:
+                return ret[0]['revision']
+                
         def lastLog(self, num=1, files=False):
             
             if num == 1:
                 end = Revision(opt_revision_kind.head)
             else:
                 end = Revision(opt_revision_kind.number, int(self.lastRev()) - (num - 1))
-                
-            log = self.client.log(self.repo, revision_end=end, discover_changed_paths=files)
+
+            try:
+                log = self.client.log(self.repo, revision_end=end, discover_changed_paths=files)
+            except pysvn._pysvn.ClientError, message:
+                msg = 'Error connecting to SVN repo: %s' % (message, )
+                print msg
+                return 'Error connecting to SVN repo'
 
             for entry in log:
                 entry['date'] = asctime(localtime(entry['date']))      # convert EPOCH seconds to human readable

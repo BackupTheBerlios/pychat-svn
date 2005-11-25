@@ -91,6 +91,11 @@ class TehBot(irc.IRCClient):
     
     def svnAnnounce(self):
         rev = self.svn.lastRev()
+
+        if rev == -1:
+            print 'ERROR: Error connecting to SVN repo'
+            return
+        
         if rev != self.options.options['REVISION']: # check against stored revision
             # new commit, yay :)
             temp = int(self.options.options['REVISION'])
@@ -601,7 +606,11 @@ class TehBot(irc.IRCClient):
     
         arg = len(params) == 1 and int(params[0]) or 1
         log = self.svn.lastLog(arg, True)
-    
+   
+        if log == 'Error connecting to SVN repo':
+            print 'ERROR: Error connecting to SVN repo'
+            return
+                   
         for entry in log:
             common = entry['date'] + ' r' + entry['revision']
             messages = entry['message'].splitlines()
