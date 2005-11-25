@@ -31,7 +31,7 @@
 from time import asctime, localtime
 
 #pysvn imports
-from pysvn import Client, Revision, opt_revision_kind
+from pysvn import Client, Revision, opt_revision_kind, ClientError
 
 class SVNInterface: #XXX: for Testing pysvn, add new features as desired
         """
@@ -58,7 +58,7 @@ class SVNInterface: #XXX: for Testing pysvn, add new features as desired
 
             try:
                 log = self.client.log(self.repo, revision_end=end, discover_changed_paths=files)
-            except pysvn._pysvn.ClientError, message:
+            except ClientError, message:
                 msg = 'Error connecting to SVN repo: %s' % (message, )
                 print msg
                 return 'Error connecting to SVN repo'
