@@ -63,6 +63,9 @@ class TehBot(irc.IRCClient):
         self.authQ = []
         self.loggedIn = []
         self.topics = {}
+        self.redos = {}
+        self.undos = {}
+        self.undo = False
         self.lastSearchStart = -1
         self.lastSearchQuery = None
         self.init()
@@ -275,13 +278,15 @@ class TehBot(irc.IRCClient):
 
              Commands:
 
-             add  - add to current topic. Usage: TOPIC [channel] add <text>
-             del  - remove from topic, based on position (starting at 0). Usage: TOPIC [channel] del <index>
-             edit - replaces topic in specified position with new text. Usage: TOPIC [channel] edit <index> <text>
-             set  - sets the topic. Usage: TOPIC [channel] set <text>
-             get  - gets the current topic. Usage: TOPIC [channel] get
-             
-             replace - replaces one word with another throughout the whole topic. Usage: TOPIC [channel] replace <to replace> <with>
+               add  - add to current topic. Usage: TOPIC [channel] add <text>
+               del  - remove from topic, based on position (starting at 0). Usage: TOPIC [channel] del <index>
+               edit - replaces topic in specified position with new text. Usage: TOPIC [channel] edit <index> <text>
+               set  - sets the topic. Usage: TOPIC [channel] set <text>
+               get  - gets the current topic. Usage: TOPIC [channel] get
+               undo - undo the last topic change. Usage: TOPIC [channel] undo
+               redo - redo the last topic undo. Usage: TOPIC [channel] redo
+               
+               replace - replaces one word with another throughout the whole topic. Usage: TOPIC [channel] replace <to replace> <with>
         """
 
         if len(params) > 1:
@@ -289,42 +294,90 @@ class TehBot(irc.IRCClient):
                 channel = params.pop(0)
             
             command = params.pop(0).lower()
+    
+            if not self.topics.has_key(channel): 
+                self.topics[channel] = []
+                
+            current = self.topics[channel]
 
             if command == 'add':
-                self.topics[channel].append(' '.join(params))
-                topic = ' | '.join(self.topics[channel])
+                temp = current + [' '.join(params)]
+#               current.append(' '.join(params))
+                topic = ' | '.join(temp)
             elif command == 'del':
                 index = int(params.pop(0))
-                topic = self.topics[channel][:index]
+                topic = current[:index]
                 index += 1
 
                 if index > 0:
-                    topic.extend(self.topics[channel][index:])
+                    topic.extend(current[index:])
 
                 topic = ' | '.join(topic)
             elif command == 'edit':
                 index = int(params.pop(0))
-                topic = self.topics[channel]
-                topic[index] = ' '.join(params)
-                topic = ' | '.join(topic)
+                current[index] = ' '.join(params)
+                topic = ' | '.join(current)
             elif command == 'replace':
                 what = params.pop(0)
                 with = params.pop(0)
-                topic = ' | '.join(self.topics[channel]) 
+                topic = ' | '.join(current) 
                 topic = topic.replace(what, with)
             elif command == 'get':
-                self.msg(user, 'topic for %s is: %s' % (channel, ' | '.join(self.topics[channel])))
+                self.msg(user, 'topic for %s is: %s' % (channel, ' | '.join(current)))
                 return
             elif command == 'set':
                 topic = ' '.join(params)    
             else:
-                topic = ' '.join(params)
+                topic = command + ' ' + ' '.join(params)
         elif len(params) == 1:
             topic = params.pop(0)
 
             if topic == 'get':
-                self.msg(user, 'topic for %s is: %s' % (channel, ' | '.join(self.topics[channel])))
+                if self.topics.has_key(channel):
+                    self.msg(user, 'topic for %s is: %s' % (channel, ' | '.join(self.topics[channel])))
+                else:
+                    self.msg(user, 'topic for %s is: %s' % (channel, ''))
                 return
+            elif topic == 'undo':
+                if not self.undos.has_key(channel):
+                    self.msg(user, 'ERROR: No undos available')
+                    return
+            
+                if len(self.undos[channel]) == 0:
+                    self.msg(user, 'ERROR: No more undos left')
+                    return
+                           
+                try:
+                    redo = self.redos[channel]
+                except KeyError:
+                    redo = []
+                    
+                temp = self.undos[channel].pop()
+                topic = ' | '.join(temp)
+                redo.append(self.topics[channel])
+                self.redos[channel] = redo
+                self.undo = True
+                print '[UNDO] UNDO: ', self.undos
+                print '[UNDO] REDO: ', self.redos
+                del self.redos[channel][:len(redo) - self.options.maxUndo]
+            elif topic == 'redo':
+                if not self.redos.has_key(channel):
+                    self.msg(user, 'ERROR: No redos available')
+                    return
+    
+                if len(self.redos[channel]) == 0:
+                    self.msg(user, 'ERROR: No more redos left')
+                    return
+
+                try:
+                    undo = self.undos[channel]
+                except KeyError:
+                    undo = []
+                    
+                temp = self.redos[channel].pop()
+                topic = ' | '.join(temp)
+                print '[REDO] UNDO: ', self.undos
+                print '[REDO] REDO: ', self.redos
         else:
             return
        
@@ -700,8 +753,30 @@ class TehBot(irc.IRCClient):
             
     def topicUpdated(self, user, channel, newTopic):
         """Called when topic is updated and on first join to a channel"""
+        if self.undo:
+            self.undo = False
+            self.topics[channel] = [entry.strip() for entry in newTopic.split('|') if len(entry.strip()) > 0]                
+            return
+        
+        if self.undos.has_key(channel):
+            if self.topics.has_key(channel):
+                if len(self.undos[channel]) > 0:
+                    if self.topics[channel] != self.undos[channel][-1]:
+                        self.undos[channel].append(self.topics[channel])
+                else:
+                    self.undos[channel].append(self.topics[channel])
+            else:
+                self.undos[channel] = []
+        else:
+            self.undos[channel] = []
+            if self.topics.has_key(channel):
+                self.undos[channel].append(self.topics[channel])    
+        
         self.topics[channel] = [entry.strip() for entry in newTopic.split('|') if len(entry.strip()) > 0]
-            
+        del self.undos[channel][:len(self.undos) - self.options.maxUndo]
+        print 'UNDO: ', self.undos
+        print 'REDO: ', self.redos
+
     def left(self, channel):
       self.options.channels.remove(channel.lower())
       print 'PART: ', channel

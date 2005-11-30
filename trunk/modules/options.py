@@ -75,3 +75,4 @@ class BotOptions:
         self.wrapWidth = self.config.getint('general', 'wrap_width')
         self.proxy = self.config.get('google', 'proxy')
         self.key = self.config.get('google', 'key')
+        self.maxUndo = self.config.getint('general', 'max_undo')
