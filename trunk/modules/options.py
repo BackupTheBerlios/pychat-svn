@@ -76,3 +76,5 @@ class BotOptions:
         self.proxy = self.config.get('google', 'proxy')
         self.key = self.config.get('google', 'key')
         self.maxUndo = self.config.getint('general', 'max_undo')
+        self.watchUsers = self.config.get('fun', 'watch_users').split()
+

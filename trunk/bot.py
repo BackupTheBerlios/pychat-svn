@@ -34,7 +34,7 @@ from twisted.internet import reactor, protocol, error
 from twisted.application.internet import TimerService
 
 # python imports
-from os import sys
+from os import sys, getcwd, chdir, mkdir
 from time import localtime, asctime, strftime, time
 from exceptions import UnicodeEncodeError
 import string
@@ -65,6 +65,7 @@ class TehBot(irc.IRCClient):
         self.topics = {}
         self.redos = {}
         self.undos = {}
+        self.userWatch = {}
         self.undo = False
         self.lastSearchStart = -1
         self.lastSearchQuery = None
@@ -82,7 +83,8 @@ class TehBot(irc.IRCClient):
         self.versionNum = self.options.options['VERSION']
         self.versionEnv = sys.platform
         self.options.options['REVISION'] = self.svn.lastRev()
-              
+        self.readWatchDataFromFile()
+        
         # SVN announce code
         if self.options.announce:    # if svn announce commits mode
             # create/start timer
@@ -106,6 +108,62 @@ class TehBot(irc.IRCClient):
             self.options.options['REVISION'] = str(temp)
             for target in self.options.announce_targets:    # tell everybody about it
                 self.cmd_lastlog(target, target, [])
+
+    def writeWatchDataToFile(self):
+        """Outputs watch data to permanent storage (disk)"""
+        if not self.checkDir('watchdata'):
+            mkdir('watchdata')
+
+        current = getcwd()
+        chdir('watchdata')
+
+        for user in self.userWatch:
+            f = open('user' + '.watch', 'w')
+            for message in self.userWatch[user]:
+                f.write('%s<*!*>%s' % (message, self.userWatch[user][message]))
+            f.close()   
+
+        chdir(current)
+
+    def readWatchDataFromFile(self):
+        """Outputs watch data to permanent storage (disk)"""
+        if not self.checkDir('watchdata'):
+            mkdir('watchdata')
+
+        current = getcwd()
+        chdir('watchdata')
+
+        for user in self.options.watchUsers:
+            if not self.userWatch.has_key(user):
+                self.userWatch[user] = {}
+            try:
+                f = open(user + '.watch', 'r')
+                for line in f:
+                    message, count = line.split('<*!*>')
+                    self.userWatch[user][message.strip()] = int(count)
+                f.close()
+            except IOError:
+                continue
+            
+        chdir(current)
+
+    def checkDir(self, dir):
+        """Checks that directory is valid"""
+
+        # get current directory
+        current = getcwd()
+        
+        try:
+            # try cd into directory
+            chdir(dir)
+            
+            # if that succeeds, switch back to previous directory...
+            chdir(current)
+        except OSError:
+            # invalid directory, thus return False
+            return False
+        
+        return True
 
     # callbacks for events
 
@@ -357,8 +415,6 @@ class TehBot(irc.IRCClient):
                 redo.append(self.topics[channel])
                 self.redos[channel] = redo
                 self.undo = True
-                print '[UNDO] UNDO: ', self.undos
-                print '[UNDO] REDO: ', self.redos
                 del self.redos[channel][:len(redo) - self.options.maxUndo]
             elif topic == 'redo':
                 if not self.redos.has_key(channel):
@@ -376,8 +432,6 @@ class TehBot(irc.IRCClient):
                     
                 temp = self.redos[channel].pop()
                 topic = ' | '.join(temp)
-                print '[REDO] UNDO: ', self.undos
-                print '[REDO] REDO: ', self.redos
         else:
             return
        
@@ -621,12 +675,47 @@ class TehBot(irc.IRCClient):
         else:
             self.msg(user, 'Restricted Commands: ' + ' '.join(_admin_commands))
 
+    def cmd_telldik(self, user, channel, params):
+        """For fun. Will be removed soon. Tells DickShinnery how often he has timed out. Usage: TELLDIK [nick]"""
+        if len(params) == 1:
+            target = params.pop(0).lower()
+        else:
+            target = 'dickshinnery'
+        
+        if target in self.options.watchUsers:
+            if target in self.userWatch:
+                if 'ping timeout' in self.userWatch[target]:
+                    self.msg(user, '%s has timed out %s times while Ive been here.' % (target, self.userWatch[target]['ping timeout']))
+                else:
+                    self.msg(user, '%s has not timed out while Ive been here!' % (target, ))
+            else:
+                self.msg(user, '%s has not timed out while Ive been here!' % (target, ))
+        else:
+            self.msg(user, '%s is not being watched' % (target,))
+
     def cmd_public(self, user, channel, params):
         """Returns list of public/open commands. Usage: PUBLIC"""
         if len(self.options.openCommands) == 0:
             self.msg(user, 'ERROR: No Public Commands')
         else:
             self.msg(user, 'Public Commands: ' + ' '.join(self.options.openCommands))
+
+    def cmd_userlog(self, user, channel, params):
+        """Displays the watch log for specified user. Usage: USERLOG <user>"""
+        if len(params) > 0:
+            target = params.pop(0).lower()
+            if target in self.options.watchUsers:
+                if target not in self.userWatch or len(self.userWatch[target]) == 0:
+                    self.msg(user, 'Empty watch log for %s!' % (target,))
+                else:
+                    self.msg(user, 'Watch log for %s: ' % (target,))
+                    for message in self.userWatch[target]:
+                        self.msg(user, '\t%s: %s' % (message, self.userWatch[target][message]))
+                    self.msg(user, '<end log>')
+            else:
+                self.msg(user, 'ERROR: Not watching %s!' % (target,))
+        else:
+            self.msg(user, 'ERROR: No user specified')
 
     def cmd_help(self, user, channel, params):
         """This screen. Displays available commands and descriptions (if available)"""
@@ -721,6 +810,8 @@ class TehBot(irc.IRCClient):
     def cmd_reload(self, user, channel, params):
         """Reload the configuration file. Usage: RELOAD"""
         self.options.loadOptions()
+        self.writeWatchDataToFile()
+        self.readWatchDataFromFile()
         self.msg(user, 'Config File Reloaded')
         self.init()
 
@@ -749,6 +840,18 @@ class TehBot(irc.IRCClient):
         if user.lower() in self.loggedIn:
             self.loggedIn.remove(user.lower())
         print 'QUIT: %s (%s)' % (user, quitMessage)
+
+        if user.lower() in self.options.watchUsers:
+            if self.userWatch.has_key(user.lower()):
+                if self.userWatch[user.lower()].has_key(quitMessage.lower()):
+                    self.userWatch[user.lower()][quitMessage.lower()] += 1
+                else:
+                    self.userWatch[user.lower()][quitMessage.lower()] = 1
+            else:
+                self.userWatch[user.lower()] = {}
+                self.userWatch[user.lower()][quitMessage.lower()] = 1
+        
+        self.writeWatchDataToFile()
         self.logger.log('QUIT: %s (%s)' % (user, quitMessage))
             
     def topicUpdated(self, user, channel, newTopic):
@@ -774,8 +877,6 @@ class TehBot(irc.IRCClient):
         
         self.topics[channel] = [entry.strip() for entry in newTopic.split('|') if len(entry.strip()) > 0]
         del self.undos[channel][:len(self.undos) - self.options.maxUndo]
-        print 'UNDO: ', self.undos
-        print 'REDO: ', self.redos
 
     def left(self, channel):
       self.options.channels.remove(channel.lower())
