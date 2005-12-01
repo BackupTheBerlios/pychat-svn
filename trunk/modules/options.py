@@ -77,4 +77,5 @@ class BotOptions:
         self.key = self.config.get('google', 'key')
         self.maxUndo = self.config.getint('general', 'max_undo')
         self.watchUsers = self.config.get('fun', 'watch_users').split()
+        self.channelChar = self.config.get('general', 'channel_char').strip()
 

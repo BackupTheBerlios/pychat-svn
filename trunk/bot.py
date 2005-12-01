@@ -243,8 +243,8 @@ class TehBot(irc.IRCClient):
             elif message.startswith('!' + self.nickname + ':'):
                 message = message[len(self.nickname)+2:].strip()
                 user = channel
-            elif message.startswith('::'):
-                message = message[2:].strip()
+            elif message.startswith(self.options.channelChar):
+                message = message[len(self.options.channelChar):].strip()
                 user = channel
             else:
                 return
