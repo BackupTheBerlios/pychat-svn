@@ -39,6 +39,7 @@ from time import localtime, asctime, strftime, time
 from exceptions import UnicodeEncodeError
 import string
 import textwrap
+import re
 
 # modules
 from modules.options import BotOptions
@@ -111,14 +112,14 @@ class TehBot(irc.IRCClient):
 
     def writeWatchDataToFile(self):
         """Outputs watch data to permanent storage (disk)"""
-        if not self.checkDir('watchdata'):
+        if not checkDir('watchdata'):
             mkdir('watchdata')
 
         current = getcwd()
         chdir('watchdata')
 
         for user in self.userWatch:
-            f = open('user' + '.watch', 'w')
+            f = open(user + '.watch', 'w')
             for message in self.userWatch[user]:
                 f.write('%s<*!*>%s' % (message, self.userWatch[user][message]))
             f.close()   
@@ -127,7 +128,7 @@ class TehBot(irc.IRCClient):
 
     def readWatchDataFromFile(self):
         """Outputs watch data to permanent storage (disk)"""
-        if not self.checkDir('watchdata'):
+        if not checkDir('watchdata'):
             mkdir('watchdata')
 
         current = getcwd()
@@ -146,24 +147,6 @@ class TehBot(irc.IRCClient):
                 continue
             
         chdir(current)
-
-    def checkDir(self, dir):
-        """Checks that directory is valid"""
-
-        # get current directory
-        current = getcwd()
-        
-        try:
-            # try cd into directory
-            chdir(dir)
-            
-            # if that succeeds, switch back to previous directory...
-            chdir(current)
-        except OSError:
-            # invalid directory, thus return False
-            return False
-        
-        return True
 
     # callbacks for events
 
@@ -230,7 +213,6 @@ class TehBot(irc.IRCClient):
     
     def irc_307(self, prefix, params):
         """Reply from WHOIS message, indicates a registered nick"""
-
         if len(params) == 3:
             user = params[1].lower()
             msg = params[2]
@@ -344,7 +326,7 @@ class TehBot(irc.IRCClient):
                undo - undo the last topic change. Usage: TOPIC [channel] undo
                redo - redo the last topic undo. Usage: TOPIC [channel] redo
                
-               replace - replaces one word with another throughout the whole topic. Usage: TOPIC [channel] replace <to replace> <with>
+               replace - replaces one word (using regexp) with a phrase throughout the whole topic. Usage: TOPIC [channel] replace <to replace - regexp> <phrase>
         """
 
         if len(params) > 1:
@@ -376,10 +358,12 @@ class TehBot(irc.IRCClient):
                 current[index] = ' '.join(params)
                 topic = ' | '.join(current)
             elif command == 'replace':
-                what = params.pop(0)
-                with = params.pop(0)
+                #what = params.pop(0)
+                what = re.compile(params.pop(0))
+                with = ' '.join(params)
                 topic = ' | '.join(current) 
-                topic = topic.replace(what, with)
+                #topic = topic.replace(what, with)
+                topic = what.sub(with, topic)
             elif command == 'get':
                 self.msg(user, 'topic for %s is: %s' % (channel, ' | '.join(current)))
                 return
@@ -928,6 +912,24 @@ class TehBotFactory(protocol.ClientFactory):
         print "connection failed:", reason
         reactor.stop()
 
+def checkDir(dir):
+    """Checks that directory is valid"""
+
+    # get current directory
+    current = getcwd()
+        
+    try:
+        # try cd into directory
+        chdir(dir)
+            
+        # if that succeeds, switch back to previous directory...
+        chdir(current)
+    except OSError:
+        # invalid directory, thus return False
+        return False
+        
+    return True
+
 if __name__ == '__main__':
     
     # Create options object
@@ -935,6 +937,10 @@ if __name__ == '__main__':
 
     # Create SVN Interface object
     svn = SVNInterface(opt.repo)
+
+    # check for logs directory
+    if not checkDir('logs'):
+        mkdir('logs')
 
     # generate logfile name
     logfile = strftime('logs/%d%m%Y-%H%M%S.log', localtime())
