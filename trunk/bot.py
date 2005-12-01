@@ -833,6 +833,18 @@ class TehBot(irc.IRCClient):
         """Closes connection. Usage: DROP"""
         reactor.stop()
 
+    def cmd_bark(self, user, channel, params):
+        """BARKS LIKE A DOG!! Usage: BARK"""
+        self.msg(channel, 'WOOF! WOOF!')
+
+    def cmd_bendover(self, user, channel, params):
+        """Behaves appropriately. Usage: BENDOVER"""
+        self.me(channel, 'drops the soap')
+
+    def cmd_insult(self, user, channel, params):
+        """Retorts. Usage: INSULT"""
+        self.msg(channel, 'RETORT!')
+
     # irc callbacks
 
     def userQuit(self, user, quitMessage):
